@@ -2,10 +2,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { I18nProvider } from './context/I18nContext';
-import PrivateRoute from './components/PrivateRoute/PrivateRoute';
-import LoginPage from './pages/LoginPage/LoginPage';
-import CompanySelectPage from './pages/CompanySelectPage/CompanySelectPage';
-import DashboardPage from './pages/DashboardPage/DashboardPage';
+import PrivateRoute from './components/PrivateRoute.tsx';
+import LoginPage from './pages/LoginPage.tsx';
+import CompanySelectPage from './pages/CompanySelectPage.tsx';
+import DashboardPage from './pages/DashboardPage.tsx';
 
 function App() {
   return (

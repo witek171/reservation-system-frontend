@@ -2,10 +2,10 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { staffMemberApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import AvailabilityHeader from './components/AvailabilityHeader/AvailabvilityHeader';
-import AvailabilityWeekGrid from './components/AvailabilityWeekGrid/AvailabilityWeekGrid';
-import AvailabilityModal from './components/AvailabilityModal/AvailabilityModal';
-import ErrorModal from '../common/ErrorModal/ErrorModal';
+import AvailabilityHeader from './components/AvailabvilityHeader.tsx';
+import AvailabilityWeekGrid from './components/AvailabilityWeekGrid.tsx';
+import AvailabilityModal from './components/AvailabilityModal.tsx';
+import ErrorModal from '../common/ErrorModal.tsx';
 
 function getMonday(d: Date): Date {
   const date = new Date(d);

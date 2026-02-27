@@ -1,20 +1,16 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { eventScheduleApi, eventTypeApi } from '../../services/api';
-import { useAuth } from '../../context/AuthContext';
-import { useI18n } from '../../context/I18nContext';
-import CalendarHeader from './components/CalendarHeader.tsx';
-import CalendarGrid from './components/CalendarGrid.tsx';
-import EventModal from './components/EventModal.tsx';
-import ErrorModal from '../common/ErrorModal.tsx';
+import { eventTypeApi, staffMemberApi } from '../services/api.ts';
+import { useAuth } from '../context/AuthContext.tsx';
+import CalendarHeader from './EventCalendar/components/CalendarHeader.tsx';
+import CalendarGrid from './EventCalendar/components/CalendarGrid.tsx';
+import EventModal from './EventCalendar/components/EventModal.tsx';
+import ErrorModal from './common/ErrorModal.tsx';
 
-const toLocalDateKey = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-const EventCalendar: React.FC = () => {
-  const { t } = useI18n();
-  const { selectedCompany } = useAuth();
+const TrainerClassesCalendar: React.FC = () => {
+  const { selectedCompany, staffMember, isTrainer } = useAuth();
   const companyId = selectedCompany?.id;
+  const staffMemberId = staffMember?.id;
   const [searchParams, setSearchParams] = useSearchParams();
 
   const monthParam = searchParams.get('month');
@@ -33,7 +29,7 @@ const EventCalendar: React.FC = () => {
   }, [monthParam]);
 
   const [currentDate, setCurrentDate] = useState(getInitialDate);
-  const [schedules, setSchedules] = useState<any[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
   const [eventTypes, setEventTypes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -140,8 +136,8 @@ const EventCalendar: React.FC = () => {
   }, [setSearchParams]);
 
   useEffect(() => {
-    if (editParam && schedules.length > 0) {
-      const event = schedules.find((s) => s.id === editParam);
+    if (editParam && classes.length > 0) {
+      const event = classes.find((s) => s.id === editParam);
       if (event) {
         setSelectedEvent(event);
         setSelectedDate(new Date(event.startTime));
@@ -161,7 +157,7 @@ const EventCalendar: React.FC = () => {
         setSelectedDate(null);
       }
     }
-  }, [editParam, dayParam, schedules]);
+  }, [editParam, dayParam, classes]);
 
   const fetchEventTypes = useCallback(async () => {
     if (!companyId) return;
@@ -173,39 +169,31 @@ const EventCalendar: React.FC = () => {
     }
   }, [companyId]);
 
-  const fetchSchedules = useCallback(async () => {
-    if (!companyId) return;
+  const fetchTrainerClasses = useCallback(async () => {
+    if (!companyId || !staffMemberId) return;
 
     try {
       setLoading(true);
       setError(null);
 
-      const params: any = {
-        page: 0,
-        pageSize: 400,
-      };
-
-      if (eventTypeParam) {
-        params.eventTypeId = eventTypeParam;
-      }
-
-      const response = await eventScheduleApi.getAll(companyId, params);
-      setSchedules((response.data as any)?.items || []);
+      const response = await staffMemberApi.getEventSchedules(companyId, staffMemberId);
+      const data = response.data as any;
+      setClasses(data || []);
     } catch (err: any) {
       console.error('Error:', err);
       setError(err.response?.data?.message || err.message);
     } finally {
       setLoading(false);
     }
-  }, [companyId, eventTypeParam]);
+  }, [companyId, staffMemberId]);
 
   useEffect(() => {
     fetchEventTypes();
   }, [fetchEventTypes]);
 
   useEffect(() => {
-    fetchSchedules();
-  }, [fetchSchedules]);
+    fetchTrainerClasses();
+  }, [fetchTrainerClasses]);
 
   useEffect(() => {
     if (!monthParam) {
@@ -221,15 +209,15 @@ const EventCalendar: React.FC = () => {
   const eventsByDate = useMemo(() => {
     const grouped: Record<string, any[]> = {};
 
-    schedules.forEach((schedule) => {
-      if (!schedule.startTime) return;
-      const date = new Date(schedule.startTime);
-      const dateKey = toLocalDateKey(date);
+    classes.forEach((cls) => {
+      if (!cls.startTime) return;
+
+      const dateKey = formatDateKey(new Date(cls.startTime));
 
       if (!grouped[dateKey]) {
         grouped[dateKey] = [];
       }
-      grouped[dateKey].push(schedule);
+      grouped[dateKey].push(cls);
     });
 
     Object.keys(grouped).forEach((key) => {
@@ -237,7 +225,7 @@ const EventCalendar: React.FC = () => {
     });
 
     return grouped;
-  }, [schedules]);
+  }, [classes]);
 
   const eventDates = useMemo(() => Object.keys(eventsByDate), [eventsByDate]);
 
@@ -263,82 +251,49 @@ const EventCalendar: React.FC = () => {
   };
 
   const handleDayClick = (date: Date) => {
+    if (isTrainer()) {
+      setSelectedDate(date);
+      setSelectedEvent(null);
+      setModalOpen(true);
+      return;
+    }
+
     openAddModal(date);
   };
 
   const handleEventClick = (event: any, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    openAddModal(new Date(event.startTime));
-  };
 
-  const handleEditEvent = (event: any) => {
+    if (isTrainer()) {
+      setSelectedEvent(event);
+      setSelectedDate(new Date(event.startTime));
+      setModalOpen(true);
+      return;
+    }
+
     openEditModal(event);
-  };
-
-  const handleSaveEvent = async (formData: {
-    eventTypeId: string;
-    placeName: string;
-    startTime: Date | string;
-  }) => {
-    try {
-      setError(null);
-
-      const startTime =
-        formData.startTime instanceof Date
-          ? formData.startTime.toISOString()
-          : new Date(formData.startTime).toISOString();
-
-      const requestData = {
-        eventTypeId: formData.eventTypeId,
-        placeName: formData.placeName,
-        startTime,
-      };
-
-      if (selectedEvent) {
-        await eventScheduleApi.update(companyId!, selectedEvent.id, requestData);
-      } else {
-        await eventScheduleApi.create(companyId!, requestData);
-      }
-
-      await fetchSchedules();
-      closeModal();
-    } catch (err) {
-      throw err;
-    }
-  };
-
-  const handleDeleteEvent = async (eventId: string) => {
-    if (!window.confirm(t('schedule.deleteConfirm'))) return;
-
-    try {
-      await eventScheduleApi.delete(companyId!, eventId);
-      await fetchSchedules();
-      closeModal();
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message);
-    }
   };
 
   const getEventsForSelectedDate = () => {
     if (!selectedDate) return [];
-    const dateKey = toLocalDateKey(selectedDate);
+    const dateKey = formatDateKey(selectedDate);
     return eventsByDate[dateKey] || [];
   };
 
   const clearError = () => setError(null);
 
-  if (loading && schedules.length === 0) {
+  if (loading && classes.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 px-8 gap-4 text-zinc-500 dark:text-zinc-400">
-        <div className="w-10 h-10 border-2 border-zinc-200 border-t-primary-500 dark:border-t-primary-400 rounded-full animate-spin" />
-        <p>{t('schedule.loading')}</p>
+        <div className="w-10 h-10 border-2 border-zinc-200 border-t-zinc-600 rounded-full animate-spin" />
+        <p>Loading calendar...</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
-      <ErrorModal error={error} onClose={clearError} title={t('schedule.errorTitle')} />
+    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-md border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+      <ErrorModal error={error} onClose={clearError} title="Calendar Error" />
 
       <CalendarHeader
         currentDate={currentDate}
@@ -346,7 +301,7 @@ const EventCalendar: React.FC = () => {
         onNextMonth={goToNextMonth}
         onToday={goToToday}
         eventsCount={eventsInCurrentMonth}
-        totalEvents={schedules.length}
+        totalEvents={classes.length}
         eventTypes={eventTypes}
         selectedEventTypeId={eventTypeParam}
         onEventTypeFilter={handleEventTypeFilter}
@@ -360,22 +315,20 @@ const EventCalendar: React.FC = () => {
         onEventClick={handleEventClick}
       />
 
-      {modalOpen && (
+      {modalOpen && companyId && (
         <EventModal
           isOpen={modalOpen}
           onClose={closeModal}
-          companyId={companyId ?? ''}
+          companyId={companyId}
           selectedDate={selectedDate}
           selectedEvent={selectedEvent}
           eventTypes={eventTypes}
           eventsForDay={getEventsForSelectedDate()}
-          onSave={handleSaveEvent}
-          onDelete={handleDeleteEvent}
-          onEditEvent={handleEditEvent}
+          readOnly
         />
       )}
     </div>
   );
 };
 
-export default EventCalendar;
+export default TrainerClassesCalendar;

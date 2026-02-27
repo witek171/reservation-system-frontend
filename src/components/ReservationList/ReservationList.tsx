@@ -8,11 +8,11 @@ import {
 } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useI18n } from '../../context/I18nContext';
-import ErrorModal from '../common/ErrorModal/ErrorModal';
-import Pagination from '../common/Pagination/Pagination';
-import ReservationHeader from './components/ReservationHeader/ReservationHeader';
-import ReservationForm from './components/ReservationForm/ReservationForm';
-import ReservationTable from './components/ReservationTable/ReservationTable';
+import ErrorModal from '../common/ErrorModal.tsx';
+import Pagination from '../common/Pagination.tsx';
+import ReservationHeader from './components/ReservationHeader.tsx';
+import ReservationForm from './components/ReservationForm.tsx';
+import ReservationTable from './components/ReservationTable.tsx';
 
 const ReservationList: React.FC = () => {
   const { t } = useI18n();

@@ -605,4 +605,3 @@ export function translate(locale: Locale, key: string, vars?: Record<string, str
 }
 
 export const translations: Record<Locale, Record<string, string>> = { en, pl };
-export type { Locale };
