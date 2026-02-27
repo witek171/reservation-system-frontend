@@ -122,8 +122,7 @@ const DashboardOverview = () => {
   const calculatePercentageChange = (current: number, previous: number) =>
     previous === 0 ? (current > 0 ? 100 : 0) : Number((((current - previous) / previous) * 100).toFixed(1));
   const localeTag = locale === 'pl' ? 'pl-PL' : 'en-US';
-  const currency = locale === 'pl' ? 'PLN' : 'USD';
-  const formatCurrency = (amount: number) => new Intl.NumberFormat(localeTag, { style: 'currency', currency }).format(amount || 0);
+  const formatAmount = (amount: number) => new Intl.NumberFormat(localeTag, { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(amount || 0);
   const formatDate = (dateString?: string) =>
     dateString
       ? new Date(dateString).toLocaleDateString(localeTag, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -240,7 +239,7 @@ const DashboardOverview = () => {
             <IconCurrency className="w-4 h-4 text-primary-500 dark:text-primary-400" />
             {t('overview.revenue')} ({getMonthName()})
           </div>
-          <p className="mt-1 text-2xl font-semibold text-zinc-900 dark:text-zinc-100">{formatCurrency(stats.currentMonthRevenue)}</p>
+          <p className="mt-1 text-2xl font-semibold text-zinc-900 dark:text-zinc-100">{formatAmount(stats.currentMonthRevenue)}</p>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">{revenueChange}% {t('overview.vs')} {getMonthName(-1)}</p>
         </div>
         <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900 shadow-soft dark:shadow-soft-dark">
