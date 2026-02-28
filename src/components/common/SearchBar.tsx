@@ -23,7 +23,7 @@ const SearchBar = ({
   maxLength = 100,
   loading = false,
   resultCount = null,
-  resultLabel,
+  resultLabel: _resultLabel,
 }: SearchBarProps) => {
   const { t } = useI18n();
   const [inputValue, setInputValue] = useState(value);

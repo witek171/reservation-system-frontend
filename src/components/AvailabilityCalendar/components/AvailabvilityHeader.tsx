@@ -1,5 +1,5 @@
 import React from 'react';
-import { useI18n } from '../../../context/I18nContext.tsx';
+import { useI18n } from '@/context/I18nContext.tsx';
 
 interface AvailabilityHeaderProps {
   weekStart: Date;
@@ -23,8 +23,8 @@ const AvailabilityHeader: React.FC<AvailabilityHeaderProps> = ({
   onPrevWeek,
   onNextWeek,
   onToday,
-  availabilitiesInWeek,
-  totalAvailabilities,
+  availabilitiesInWeek: _availabilitiesInWeek,
+  totalAvailabilities: _totalAvailabilities,
 }) => {
   const { t, locale } = useI18n();
   const localeTag = locale === 'pl' ? 'pl-PL' : 'en-GB';

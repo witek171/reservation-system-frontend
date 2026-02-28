@@ -1,5 +1,5 @@
 import React from 'react';
-import { useI18n } from '../../../context/I18nContext.tsx';
+import { useI18n } from '@/context/I18nContext.tsx';
 import { IconClose } from '../../common/Icons.tsx';
 
 interface EventTypeItem {
@@ -27,8 +27,8 @@ const CalendarHeader: React.FC<CalendarHeaderProps> = ({
   onPrevMonth,
   onNextMonth,
   onToday,
-  eventsCount,
-  totalEvents,
+  eventsCount: _eventsCount,
+  totalEvents: _totalEvents,
   eventTypes,
   selectedEventTypeId,
   onEventTypeFilter,
