@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useI18n } from '../../../context/I18nContext.tsx';
+import { useI18n } from '@/context/I18nContext.tsx';
 
 interface SlotItem {
   id?: string;
@@ -85,8 +85,7 @@ const AvailabilityModal: React.FC<AvailabilityModalProps> = ({
 
   const getAvailabilityId = (slot: SlotItem | null): string | undefined => {
     if (!slot) return undefined;
-    const s = slot as Record<string, unknown>;
-    return (s.id ?? s.availabilityId ?? s.Id) as string | undefined;
+    return slot.id ?? slot.availabilityId;
   };
 
   const handleDeleteClick = async () => {

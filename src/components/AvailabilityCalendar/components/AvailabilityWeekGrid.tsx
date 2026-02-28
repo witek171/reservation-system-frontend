@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { useI18n } from '../../../context/I18nContext.tsx';
+import { useI18n } from '@/context/I18nContext.tsx';
 
 export interface SlotItem {
   id?: string;
@@ -139,7 +139,7 @@ const AvailabilityWeekGrid: React.FC<AvailabilityWeekGridProps> = ({
       <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
         <div className="grid gap-0" style={{ gridTemplateColumns: '56px repeat(7, 1fr)', minWidth: '600px' }}>
           <div className="border-r border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-800/30">
-            {timeLabels.map((label, i) => (
+            {timeLabels.map((label) => (
               <div
                 key={label}
                 className="border-b border-zinc-100 dark:border-zinc-700/80 text-[11px] text-zinc-500 dark:text-zinc-400 pl-1 pr-1"
