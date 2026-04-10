@@ -14,6 +14,7 @@ interface EventTypeItem {
 interface CalendarEvent {
   id: string;
   startTime: string;
+  endTime?: string;
   status?: string;
   eventType?: { id?: string; name?: string };
   placeName?: string;
@@ -402,8 +403,9 @@ const EventModal: React.FC<EventModalProps> = ({
                       key={event.id}
                       className="flex items-center gap-3 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-700"
                     >
-                      <div className="font-semibold text-primary-600 dark:text-primary-400 text-[13px] min-w-[45px]">
+                      <div className="font-semibold text-primary-600 dark:text-primary-400 text-[13px] min-w-fit">
                         {formatTime(event.startTime)}
+                        {event.endTime && ` - ${formatTime(event.endTime)}`}
                       </div>
                       <div className="flex-1 min-w-0">
                         <strong className="block font-medium text-zinc-800 dark:text-zinc-200 text-[13px] whitespace-nowrap overflow-hidden text-ellipsis">
@@ -462,7 +464,7 @@ const EventModal: React.FC<EventModalProps> = ({
           <div className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-600 dark:bg-zinc-900 shadow-soft dark:shadow-soft-dark w-full max-w-md overflow-visible" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-zinc-600 bg-zinc-50/80 dark:bg-zinc-800/50 rounded-t-2xl">
               <h4 className="font-semibold text-zinc-900 dark:text-zinc-100">
-                {t('schedule.staffForEvent', { name: `${assignStaffEvent.eventType?.name ?? ''} – ${formatTime(assignStaffEvent.startTime)}` })}
+                {t('schedule.staffForEvent', { name: `${assignStaffEvent.eventType?.name ?? ''} – ${formatTime(assignStaffEvent.startTime)}${assignStaffEvent.endTime ? ` - ${formatTime(assignStaffEvent.endTime)}` : ''}` })}
               </h4>
               <button type="button" onClick={() => setAssignStaffEvent(null)} className="p-1.5 rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-200 transition-colors">
                 <IconClose className="w-4 h-4" />

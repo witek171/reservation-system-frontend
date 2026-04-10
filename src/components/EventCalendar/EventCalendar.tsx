@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useI18n } from '../../context/I18nContext';
 import CalendarHeader from './components/CalendarHeader.tsx';
 import CalendarGrid from './components/CalendarGrid.tsx';
+import TimeGridView from './components/TimeGridView.tsx';
 import EventModal from './components/EventModal.tsx';
 import ErrorModal from '../common/ErrorModal.tsx';
 
@@ -21,6 +22,7 @@ const EventCalendar: React.FC = () => {
   const eventTypeParam = searchParams.get('eventType') || '';
   const editParam = searchParams.get('edit');
   const dayParam = searchParams.get('day');
+  const viewModeParam = (searchParams.get('view') as 'month' | 'week' | null) || 'month';
 
   const getInitialDate = useCallback(() => {
     if (monthParam) {
@@ -37,6 +39,7 @@ const EventCalendar: React.FC = () => {
   const [eventTypes, setEventTypes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'month' | 'week'>(viewModeParam);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -73,6 +76,18 @@ const EventCalendar: React.FC = () => {
       setSearchParams((prev) => {
         const params = new URLSearchParams(prev);
         params.set('month', newMonthKey);
+        return params;
+      }, { replace: true });
+    },
+    [setSearchParams]
+  );
+
+  const handleViewModeChange = useCallback(
+    (mode: 'month' | 'week') => {
+      setViewMode(mode);
+      setSearchParams((prev) => {
+        const params = new URLSearchParams(prev);
+        params.set('view', mode);
         return params;
       }, { replace: true });
     },
@@ -249,13 +264,25 @@ const EventCalendar: React.FC = () => {
   }, [currentDate, eventDates, eventsByDate]);
 
   const goToPreviousMonth = () => {
-    const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
-    updateMonth(newDate);
+    if (viewMode === 'week') {
+      const newDate = new Date(currentDate);
+      newDate.setDate(newDate.getDate() - 7);
+      updateMonth(newDate);
+    } else {
+      const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+      updateMonth(newDate);
+    }
   };
 
   const goToNextMonth = () => {
-    const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
-    updateMonth(newDate);
+    if (viewMode === 'week') {
+      const newDate = new Date(currentDate);
+      newDate.setDate(newDate.getDate() + 7);
+      updateMonth(newDate);
+    } else {
+      const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+      updateMonth(newDate);
+    }
   };
 
   const goToToday = () => {
@@ -337,7 +364,7 @@ const EventCalendar: React.FC = () => {
   }
 
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
+    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden flex flex-col">
       <ErrorModal error={error} onClose={clearError} title={t('schedule.errorTitle')} />
 
       <CalendarHeader
@@ -351,14 +378,27 @@ const EventCalendar: React.FC = () => {
         selectedEventTypeId={eventTypeParam}
         onEventTypeFilter={handleEventTypeFilter}
         loading={loading}
+        viewMode={viewMode}
+        onViewModeChange={handleViewModeChange}
       />
 
-      <CalendarGrid
-        currentDate={currentDate}
-        eventsByDate={eventsByDate}
-        onDayClick={handleDayClick}
-        onEventClick={handleEventClick}
-      />
+      <div className="flex-1 overflow-auto">
+        {viewMode === 'week' ? (
+          <TimeGridView
+            currentDate={currentDate}
+            eventsByDate={eventsByDate}
+            onDayClick={handleDayClick}
+            onEventClick={handleEventClick}
+          />
+        ) : (
+          <CalendarGrid
+            currentDate={currentDate}
+            eventsByDate={eventsByDate}
+            onDayClick={handleDayClick}
+            onEventClick={handleEventClick}
+          />
+        )}
+      </div>
 
       {modalOpen && (
         <EventModal
