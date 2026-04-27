@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '../../../context/I18nContext.tsx';
-import { IconUsers, IconClose, IconCheck, IconAlert } from '../../common/Icons.tsx';
+import { formatPhone } from '../../../utils/formatPhone.ts';
 import EventCalendarSelector from './EventCalendarSelector.tsx';
 import NewParticipantModal from './NewParticipantModal.tsx';
+import Select from '../../common/Select.tsx';
 
 interface Participant {
   id: string;
@@ -33,60 +34,82 @@ interface ReservationFormProps {
   }) => Promise<string | any>;
 }
 
-const formInput =
-  'w-full rounded-xl border border-zinc-200 bg-zinc-50/80 px-3 py-2.5 text-zinc-900 placeholder-zinc-400 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-primary-500 dark:focus:ring-primary-500/20';
+const inputClass =
+  'w-full rounded-xl border border-outline-variant bg-surface px-4 py-2.5 text-on-surface placeholder:text-outline focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all';
+
+const closeBtnClass =
+  'h-9 w-9 inline-flex items-center justify-center rounded-full text-outline hover:text-on-surface hover:bg-surface-variant transition-colors';
+
+const sectionClass = 'rounded-xl border border-surface-variant bg-surface p-4 md:p-5';
 
 const ReservationForm: React.FC<ReservationFormProps> = ({
-  editingReservation,
-  eventSchedules,
-  participants,
-  eventTypes,
-  onSubmit,
-  onCancel,
-  onAddParticipant,
-}) => {
+                                                           editingReservation,
+                                                           eventSchedules,
+                                                           participants,
+                                                           eventTypes,
+                                                           onSubmit,
+                                                           onCancel,
+                                                           onAddParticipant,
+                                                         }) => {
   const { t } = useI18n();
+
   const [formData, setFormData] = useState({
     eventScheduleId: editingReservation?.eventSchedule?.id || '',
-    participantsIds: (editingReservation?.participants?.map((p: Participant) => p.id) as string[]) || [],
+    participantsIds:
+      (editingReservation?.participants?.map((p: Participant) => p.id) as string[]) || [],
     notes: editingReservation?.notes || '',
     isPaid: editingReservation?.isPaid || false,
   });
 
   const [showNewParticipantModal, setShowNewParticipantModal] = useState(false);
+  const [participantPickerValue, setParticipantPickerValue] = useState<string | number>('');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [notesTouched, setNotesTouched] = useState(false);
 
-  const addedParticipants = participants.filter((p) => formData.participantsIds.includes(p.id));
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    setFormData({
+      eventScheduleId: editingReservation?.eventSchedule?.id || '',
+      participantsIds:
+        (editingReservation?.participants?.map((p: Participant) => p.id) as string[]) || [],
+      notes: editingReservation?.notes || '',
+      isPaid: editingReservation?.isPaid || false,
+    });
+    setParticipantPickerValue('');
     setFormError(null);
+    setShowNewParticipantModal(false);
+    setNotesTouched(false);
+  }, [editingReservation]);
 
-    if (!editingReservation && !formData.eventScheduleId) {
-      setFormError(t('reservations.selectEventRequired'));
-      return;
-    }
+  const getParticipantName = (p: Participant) =>
+    [p.firstName, p.lastName].filter(Boolean).join(' ') || p.email || p.phone || '—';
 
-    if (!editingReservation && formData.participantsIds.length === 0) {
-      setFormError(t('reservations.addParticipantRequired'));
-      return;
-    }
+  const getInitials = (firstName?: string, lastName?: string) =>
+    `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase() || '?';
 
-    if (!formData.notes?.trim()) {
-      setFormError(t('reservations.notesRequired'));
-      return;
-    }
+  // Prosta, sprawdzona logika ze starego kodu
+  const addedParticipants = participants.filter((p) =>
+    formData.participantsIds.includes(p.id)
+  );
 
-    try {
-      setSubmitting(true);
-      await onSubmit(formData);
-    } catch (err: any) {
-      setFormError(err.response?.data?.message || err.message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const availableParticipants = participants.filter(
+    (p) => !formData.participantsIds.includes(p.id)
+  );
+
+  const participantOptions = useMemo(
+    () =>
+      availableParticipants.map((p) => ({
+        value: p.id,
+        label: [getParticipantName(p), p.email].filter(Boolean).join(' • '),
+      })),
+    [availableParticipants]
+  );
+
+  const notesEmpty = !formData.notes?.trim();
+
+  const isValid =
+    (!!editingReservation || (!!formData.eventScheduleId && formData.participantsIds.length > 0)) &&
+    !notesEmpty;
 
   const handleEventSelect = (eventId: string) => {
     setFormData((prev) => ({ ...prev, eventScheduleId: eventId }));
@@ -99,6 +122,17 @@ const ReservationForm: React.FC<ReservationFormProps> = ({
     }));
   };
 
+  const handleAddExistingParticipant = (value: string | number) => {
+    const participantId = String(value || '');
+    setParticipantPickerValue('');
+    if (!participantId) return;
+    setFormData((prev) => {
+      if (prev.participantsIds.includes(participantId)) return prev;
+      return { ...prev, participantsIds: [...prev.participantsIds, participantId] };
+    });
+  };
+
+  // Dokładnie stara, działająca logika
   const handleNewParticipant = async (participantData: {
     firstName: string;
     lastName: string;
@@ -107,172 +141,266 @@ const ReservationForm: React.FC<ReservationFormProps> = ({
     gdprConsent: boolean;
   }) => {
     try {
-      const newId = await onAddParticipant(participantData);
-      if (newId) {
-        const id = typeof newId === 'object' && newId?.id != null ? newId.id : newId;
+      const result = await onAddParticipant(participantData);
+      if (result) {
+        const id =
+          typeof result === 'object' && result?.id != null ? result.id : result;
         setFormData((prev) => ({
           ...prev,
-          participantsIds: [...prev.participantsIds, id],
+          participantsIds: [...prev.participantsIds, String(id)],
         }));
       }
       setShowNewParticipantModal(false);
     } catch (err) {
-      throw err;
+      throw err; // Przekazujemy błąd do modalu, żeby wyświetlił go inline
     }
   };
 
-  const getInitials = (firstName?: string, lastName?: string) => {
-    return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+    setNotesTouched(true);
+
+    if (!editingReservation && !formData.eventScheduleId) {
+      setFormError(t('reservations.selectEventRequired'));
+      return;
+    }
+
+    if (!editingReservation && formData.participantsIds.length === 0) {
+      setFormError(t('reservations.addParticipantRequired'));
+      return;
+    }
+
+    // Notatki wymagane, ale bez error-bannera
+    if (notesEmpty) return;
+
+    try {
+      setSubmitting(true);
+      await onSubmit({ ...formData, notes: formData.notes.trim() });
+    } catch (err: any) {
+      setFormError(err?.response?.data?.message || err?.message || 'Wystąpił błąd.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const isValid =
-    (!!editingReservation || (!!formData.eventScheduleId && formData.participantsIds.length > 0)) &&
-    !!formData.notes?.trim();
-
   return (
-    <div className="p-6 bg-zinc-50/80 dark:bg-zinc-800/30 border-b border-zinc-200 dark:border-zinc-700">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-        <h4 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 m-0 mb-4 pb-4 border-b border-zinc-200 dark:border-zinc-700">
-          {editingReservation ? t('reservations.edit') : t('reservations.createNew')}
-        </h4>
+    <div className="w-full bg-surface-container-lowest md:rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.04)] md:border border-surface-variant overflow-hidden min-h-screen md:min-h-0">
+      {/* Header */}
+      <div className="p-4 md:p-6 border-b border-surface-variant flex items-center justify-between gap-4 bg-surface-bright">
+        <div>
+          <h3 className="font-h3 text-h3 text-on-surface">
+            {editingReservation ? t('reservations.edit') : t('reservations.createNew')}
+          </h3>
+        </div>
+        <button type="button" onClick={onCancel} className={closeBtnClass} aria-label={t('common.close')}>
+          <span className="material-symbols-outlined">close</span>
+        </button>
+      </div>
 
+      <form onSubmit={handleSubmit} className="p-4 md:p-6 space-y-6">
         {formError && (
-          <div className="flex items-center justify-between gap-2 py-3 px-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm">
-            <div className="flex items-center gap-2">
-              <IconAlert className="w-4 h-4 flex-shrink-0" />
-              <span>{formError}</span>
+          <div className="rounded-xl border border-error/20 bg-error-container px-4 py-3 text-on-error-container">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2">
+                <span className="material-symbols-outlined text-[18px] mt-0.5">error</span>
+                <span className="font-body-sm text-body-sm">{formError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFormError(null)}
+                className="text-on-error-container/80 hover:text-on-error-container"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
             </div>
-            <button
-              type="button"
-              className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm cursor-pointer transition-colors"
-              onClick={() => setFormError(null)}
-            >
-              {t('reservations.dismiss')}
-            </button>
           </div>
         )}
 
+        {/* Event */}
         {!editingReservation && (
-          <>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                {t('reservations.selectEvent')} <span className="text-red-500">*</span>
-              </label>
-              <EventCalendarSelector
-                eventSchedules={eventSchedules}
-                eventTypes={eventTypes}
-                selectedEventId={formData.eventScheduleId}
-                onSelectEvent={handleEventSelect}
-              />
+          <div className={sectionClass}>
+            <div className="mb-4">
+              <div className="font-body-md text-body-md font-semibold text-on-surface flex items-center gap-2">
+                <span className="material-symbols-outlined text-[18px]">event</span>
+                {t('reservations.selectEvent')} <span className="text-error">*</span>
+              </div>
             </div>
+            <EventCalendarSelector
+              eventSchedules={eventSchedules}
+              eventTypes={eventTypes}
+              selectedEventId={formData.eventScheduleId}
+              onSelectEvent={handleEventSelect}
+            />
+          </div>
+        )}
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                {t('reservations.participants')} <span className="text-red-500">*</span>
-              </label>
-              <div className="border border-zinc-200 dark:border-zinc-700 rounded-xl overflow-hidden bg-white dark:bg-zinc-900">
-                <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700">
-                  <div className="flex items-center gap-2 text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                    <IconUsers className="w-4 h-4 text-primary-500 dark:text-primary-400" />
-                    {t('reservations.addedParticipants')}
-                    {addedParticipants.length > 0 && (
-                      <span className="px-2 py-0.5 text-xs font-medium bg-primary-500/20 text-primary-600 dark:text-primary-300 rounded-lg">
-                        {addedParticipants.length}
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-primary-300 bg-primary-500/15 px-3 py-1.5 text-xs font-medium text-primary-700 dark:border-primary-600 dark:bg-primary-500/20 dark:text-primary-200 hover:bg-primary-500/25 dark:hover:bg-primary-500/30 transition-colors"
-                    onClick={() => setShowNewParticipantModal(true)}
-                  >
-                    <IconUsers className="w-3.5 h-3.5" />
-                    {t('reservations.addParticipant')}
-                  </button>
+        {/* Participants */}
+        {!editingReservation && (
+          <div className={sectionClass}>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <div className="font-body-md text-body-md font-semibold text-on-surface flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[18px]">group</span>
+                  {t('reservations.participants')} <span className="text-error">*</span>
                 </div>
+                <p className="mt-1 font-body-sm text-body-sm text-on-surface-variant">
+                  {t('reservations.addedParticipants')}: {addedParticipants.length}
+                </p>
+              </div>
 
-                <div className="max-h-[250px] overflow-y-auto">
-                  {addedParticipants.length > 0 ? (
-                    addedParticipants.map((participant) => (
-                      <div
-                        key={participant.id}
-                        className="flex items-center gap-4 px-4 py-3 border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 last:border-b-0 transition-colors"
-                      >
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-500/20 text-primary-600 dark:text-primary-300 text-sm font-semibold">
-                          {getInitials(participant.firstName, participant.lastName)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-zinc-900 dark:text-zinc-100">
-                            {participant.firstName} {participant.lastName}
-                          </div>
-                          <div className="text-sm text-zinc-500 dark:text-zinc-400 truncate">{participant.email}</div>
-                          <div className="text-sm text-zinc-500 dark:text-zinc-400 truncate">{participant.phone}</div>
-                        </div>
-                        <button
-                          type="button"
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 transition-colors"
-                          onClick={() => handleRemoveParticipant(participant.id)}
-                          title={t('reservations.removeParticipant')}
-                        >
-                          <IconClose className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-8 px-6 text-center text-zinc-500 dark:text-zinc-400 gap-2">
-                      <IconUsers className="w-12 h-12 text-zinc-300 dark:text-zinc-600" />
-                      <span className="text-sm">{t('reservations.noParticipantsAdded')}</span>
-                      <span className="text-xs text-zinc-400 dark:text-zinc-500">{t('reservations.noParticipantsHint')}</span>
-                    </div>
-                  )}
+              <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+                <div className="w-full sm:min-w-[320px]">
+                  <Select
+                    options={participantOptions}
+                    value={participantPickerValue}
+                    onChange={handleAddExistingParticipant}
+                    placeholder={t('reservations.addParticipant')}
+                    disabled={participantOptions.length === 0}
+                  />
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setShowNewParticipantModal(true)}
+                  className="px-4 py-2.5 rounded-lg border border-outline-variant text-on-surface font-label-bold text-label-bold hover:bg-surface-container-low transition-colors inline-flex items-center justify-center gap-2 whitespace-nowrap"
+                >
+                  <span className="material-symbols-outlined text-[18px]">person_add</span>
+                  {t('reservations.addNewParticipant')}
+                </button>
               </div>
             </div>
 
-            <label className="flex items-center gap-2 px-4 py-3 border border-zinc-200 dark:border-zinc-700 rounded-xl cursor-pointer bg-white dark:bg-zinc-900">
-              <input
-                type="checkbox"
-                className="w-4 h-4 rounded border-zinc-300 text-primary-500 focus:ring-primary-400"
-                checked={formData.isPaid}
-                onChange={(e) => setFormData({ ...formData, isPaid: e.target.checked })}
-              />
-              <span className="text-sm text-zinc-800 dark:text-zinc-200 cursor-pointer">{t('reservations.markAsPaid')}</span>
-            </label>
-          </>
+            <div className="mt-4 space-y-2">
+              {addedParticipants.length > 0 ? (
+                addedParticipants.map((participant) => (
+                  <div
+                    key={participant.id}
+                    className="rounded-xl border border-surface-variant bg-surface-container-low px-4 py-3"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="h-10 w-10 rounded-full bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center shrink-0 font-label-bold text-label-bold text-xs">
+                        {getInitials(participant.firstName, participant.lastName)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-body-md text-body-md font-semibold text-on-surface">
+                          {getParticipantName(participant)}
+                        </div>
+                        <div className="mt-1 flex flex-col gap-1">
+                          {participant.email && (
+                            <div className="flex items-center gap-2 font-body-sm text-body-sm text-on-surface-variant">
+                              <span className="material-symbols-outlined text-[16px]">mail</span>
+                              <span className="truncate">{participant.email}</span>
+                            </div>
+                          )}
+                          {participant.phone && (
+                            <div className="flex items-center gap-2 font-body-sm text-body-sm text-on-surface-variant">
+                              <span className="material-symbols-outlined text-[16px]">call</span>
+                              <span className="truncate">{formatPhone(participant.phone)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveParticipant(participant.id)}
+                        className="h-9 w-9 inline-flex items-center justify-center rounded-full text-outline hover:text-error hover:bg-error-container transition-colors shrink-0"
+                        title={t('reservations.removeParticipant')}
+                      >
+                        <span className="material-symbols-outlined text-[18px]">close</span>
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-xl border border-dashed border-surface-variant bg-surface-container-low px-6 py-10 text-center">
+                  <span className="material-symbols-outlined text-[40px] text-outline mb-2">group_off</span>
+                  <div className="font-body-md text-body-md font-semibold text-on-surface">
+                    {t('reservations.noParticipantsAdded')}
+                  </div>
+                  <div className="mt-1 font-body-sm text-body-sm text-on-surface-variant">
+                    {t('reservations.noParticipantsHint')}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t('reservations.notes')} *</label>
+        {/* Notes */}
+        <div className={sectionClass}>
+          <label className="font-body-md text-body-md font-semibold text-on-surface flex items-center gap-2 mb-3">
+            <span className="material-symbols-outlined text-[18px]">notes</span>
+            {t('reservations.notes')} <span className="text-error">*</span>
+          </label>
+
           <textarea
-            className={`${formInput} min-h-[80px] resize-y`}
+            className={`${inputClass} min-h-[120px] resize-y`}
             placeholder={t('reservations.notesPlaceholder')}
             value={formData.notes}
-            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-            required
+            onChange={(e) => {
+              setFormData((prev) => ({ ...prev, notes: e.target.value }));
+              if (!notesTouched) setNotesTouched(true);
+            }}
+            onBlur={() => setNotesTouched(true)}
           />
+
+          {notesTouched && notesEmpty && (
+            <p className="mt-2 flex items-center gap-1.5 font-body-sm text-body-sm text-on-surface-variant">
+              <span className="material-symbols-outlined text-[16px]">info</span>
+              {t('reservations.notesRequired')}
+            </p>
+          )}
         </div>
 
-        <div className="flex gap-3 pt-4 border-t border-zinc-200 dark:border-zinc-700 mt-4">
-          <button
-            type="submit"
-            className="inline-flex items-center gap-2 rounded-xl border border-primary-300 bg-primary-500/15 px-4 py-2.5 text-sm font-medium text-primary-700 hover:bg-primary-500/25 dark:border-primary-600 dark:bg-primary-500/20 dark:text-primary-200 dark:hover:bg-primary-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={!isValid || submitting}
-          >
-            {submitting ? (
-              t('reservations.saving')
-            ) : (
-              <>
-                <IconCheck className="w-4 h-4" />
-                {editingReservation ? t('common.update') : t('reservations.createReservation')}
-              </>
-            )}
-          </button>
+        {/* isPaid */}
+        {!editingReservation && (
+          <div className={sectionClass}>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 rounded border-outline-variant text-primary focus:ring-primary/20"
+                checked={formData.isPaid}
+                onChange={(e) => setFormData((prev) => ({ ...prev, isPaid: e.target.checked }))}
+              />
+              <div>
+                <div className="mt-1 font-body-sm text-body-sm text-on-surface-variant">
+                  {formData.isPaid ? t('reservations.paid') : t('reservations.unpaid')}
+                </div>
+              </div>
+            </label>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 transition-colors"
             onClick={onCancel}
+            className="px-4 py-2.5 rounded-lg border border-outline-variant text-on-surface font-label-bold text-label-bold hover:bg-surface-container-low transition-colors"
           >
             {t('common.cancel')}
+          </button>
+
+          <button
+            type="submit"
+            disabled={!isValid || submitting}
+            className={`px-4 py-2.5 rounded-lg bg-primary text-on-primary font-label-bold text-label-bold hover:bg-primary-hover transition-colors inline-flex items-center justify-center gap-2 ${
+              !isValid || submitting ? 'opacity-60 cursor-not-allowed' : ''
+            }`}
+          >
+            {submitting && (
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-on-primary border-t-transparent" />
+            )}
+            {!submitting && (
+              <span className="material-symbols-outlined text-[18px]">
+                {editingReservation ? 'save' : 'event_available'}
+              </span>
+            )}
+            {submitting
+              ? t('reservations.saving')
+              : editingReservation
+                ? t('common.update')
+                : t('reservations.createReservation')}
           </button>
         </div>
       </form>

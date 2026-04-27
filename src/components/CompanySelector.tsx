@@ -10,7 +10,9 @@ interface CompanySelectorProps {
 }
 
 const CompanySelector = ({ companies, staffMember, onSelect }: CompanySelectorProps) => {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    companies.length === 1 ? companies[0].id : null
+  );
   const { t } = useI18n();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -19,85 +21,125 @@ const CompanySelector = ({ companies, staffMember, onSelect }: CompanySelectorPr
     if (company) onSelect(company);
   };
 
-  const firstName = (staffMember as Record<string, string>)?.firstName ?? '';
-  const lastName = (staffMember as Record<string, string>)?.lastName ?? '';
+  const role = (staffMember as Record<string, string>)?.role ?? '';
 
   if (companies.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
-        <div className="w-12 h-12 text-zinc-400 dark:text-zinc-500 mb-3">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-full h-full">
+      <div className="bg-surface-container-low rounded-xl p-4 sm:p-sm border border-surface-variant text-center">
+        <div className="mx-auto mb-sm flex h-12 w-12 items-center justify-center rounded-xl bg-surface text-on-surface-variant">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            className="h-6 w-6"
+          >
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
             <polyline points="9 22 9 12 15 12 15 22" />
           </svg>
         </div>
-        <h4 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{t('company.noCompanies')}</h4>
-        <p className="mt-1.5 text-sm text-zinc-500 dark:text-zinc-400">
-          {t('company.welcome')}, {firstName} {lastName}. {t('company.noCompaniesMessage')}
-        </p>
+
+        <h2 className="font-label-bold text-label-bold text-on-surface">
+          {t('company.noCompanies')}
+        </h2>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{t('company.select')}</h2>
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        {t('company.welcome')}, {firstName} {lastName}. {t('company.selectCompany')}
-      </p>
+    <div className="flex flex-col gap-md">
       <div className="flex items-center gap-2">
-        <span className="text-sm text-zinc-500 dark:text-zinc-400">{t('company.yourRole')}</span>
-        <RoleBadge role={(staffMember as Record<string, string>)?.role ?? ''} />
+        <span className="font-body-sm text-body-sm text-on-surface-variant">
+          {t('company.yourRole')}
+        </span>
+        <RoleBadge role={role} />
       </div>
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <div className="space-y-1.5">
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-md">
+        <div className="flex flex-col gap-sm">
           {companies.map((company) => {
             const c = company as Record<string, string>;
             const isSelected = selectedId === company.id;
+
             return (
-              <div
+              <button
                 key={company.id}
-                role="button"
-                tabIndex={0}
+                type="button"
                 onClick={() => setSelectedId(company.id)}
-                onKeyDown={(e) => e.key === 'Enter' && setSelectedId(company.id)}
-                className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+                className={`w-full rounded-xl border p-3 text-left transition-all active:scale-[0.99] ${
                   isSelected
-                    ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-100 dark:bg-zinc-800'
-                    : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600'
+                    ? 'border-primary bg-surface ring-1 ring-primary'
+                    : 'border-surface-variant bg-surface-container-low hover:bg-surface'
                 }`}
               >
-                <div className="w-10 h-10 rounded-lg bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-zinc-600 dark:text-zinc-300">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                    <polyline points="9 22 9 12 15 12 15 22" />
-                  </svg>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-zinc-900 dark:text-zinc-100 truncate">{company.name}</h3>
-                  {c.city && (
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{c.city}{c.street ? `, ${c.street}` : ''}</p>
-                  )}
-                </div>
-                {isSelected && (
-                  <div className="w-5 h-5 text-zinc-700 dark:text-zinc-300">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                      <polyline points="22 4 12 14.01 9 11.01" />
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                      isSelected
+                        ? 'bg-secondary text-on-secondary'
+                        : 'bg-surface text-on-surface-variant'
+                    }`}
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      className="h-5 w-5"
+                    >
+                      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                      <polyline points="9 22 9 12 15 12 15 22" />
                     </svg>
                   </div>
-                )}
-              </div>
+
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-label-bold text-label-bold text-on-surface truncate">
+                      {company.name}
+                    </h3>
+
+                    {c.city && (
+                      <p className="mt-[2px] font-body-sm text-body-sm text-on-surface-variant truncate">
+                        {c.city}
+                        {c.street ? `, ${c.street}` : ''}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="shrink-0">
+                    {isSelected ? (
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        className="h-5 w-5 text-primary"
+                      >
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                        <polyline points="22 4 12 14.01 9 11.01" />
+                      </svg>
+                    ) : (
+                      <div className="h-5 w-5 rounded-full border border-outline-variant" />
+                    )}
+                  </div>
+                </div>
+              </button>
             );
           })}
         </div>
+
         <button
           type="submit"
           disabled={selectedId === null}
-          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-medium rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+          className="mt-sm h-[48px] w-full bg-secondary text-on-secondary font-label-bold text-label-bold rounded-lg flex items-center justify-center gap-2 hover:bg-on-secondary-fixed-variant active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {t('company.continue')}
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            className="h-4 w-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <line x1="5" y1="12" x2="19" y2="12" />
             <polyline points="12 5 19 12 12 19" />
           </svg>

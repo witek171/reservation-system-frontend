@@ -1,62 +1,113 @@
-/**
- * Generates a consistent pastel color for a given eventTypeId
- * Uses a seed-based approach to ensure the same ID always gets the same color
- */
-export const getEventTypeColor = (eventTypeId: string): {
+export interface EventColor {
   bg: string;
   text: string;
   border: string;
-  light: string;
-} => {
-  const colors = [
-    { bg: 'bg-blue-200', text: 'text-blue-900', border: 'border-blue-300', light: 'dark:bg-blue-500 dark:text-white dark:border-blue-400' },
-    { bg: 'bg-rose-200', text: 'text-rose-900', border: 'border-rose-300', light: 'dark:bg-rose-500 dark:text-white dark:border-rose-400' },
-    { bg: 'bg-green-200', text: 'text-green-900', border: 'border-green-300', light: 'dark:bg-green-600 dark:text-white dark:border-green-500' },
-    { bg: 'bg-purple-200', text: 'text-purple-900', border: 'border-purple-300', light: 'dark:bg-purple-500 dark:text-white dark:border-purple-400' },
-    { bg: 'bg-teal-200', text: 'text-teal-900', border: 'border-teal-300', light: 'dark:bg-teal-600 dark:text-white dark:border-teal-500' },
-    { bg: 'bg-orange-200', text: 'text-orange-900', border: 'border-orange-300', light: 'dark:bg-orange-500 dark:text-white dark:border-orange-400' },
-    { bg: 'bg-sky-200', text: 'text-sky-900', border: 'border-sky-300', light: 'dark:bg-sky-500 dark:text-white dark:border-sky-400' },
-    { bg: 'bg-pink-200', text: 'text-pink-900', border: 'border-pink-300', light: 'dark:bg-pink-500 dark:text-white dark:border-pink-400' },
-    { bg: 'bg-emerald-200', text: 'text-emerald-900', border: 'border-emerald-300', light: 'dark:bg-emerald-600 dark:text-white dark:border-emerald-500' },
-    { bg: 'bg-indigo-200', text: 'text-indigo-900', border: 'border-indigo-300', light: 'dark:bg-indigo-500 dark:text-white dark:border-indigo-400' },
-    { bg: 'bg-cyan-200', text: 'text-cyan-900', border: 'border-cyan-300', light: 'dark:bg-cyan-600 dark:text-white dark:border-cyan-500' },
-    { bg: 'bg-red-200', text: 'text-red-900', border: 'border-red-300', light: 'dark:bg-red-500 dark:text-white dark:border-red-400' },
-    { bg: 'bg-violet-200', text: 'text-violet-900', border: 'border-violet-300', light: 'dark:bg-violet-500 dark:text-white dark:border-violet-400' },
-    { bg: 'bg-lime-200', text: 'text-lime-900', border: 'border-lime-300', light: 'dark:bg-lime-600 dark:text-white dark:border-lime-500' },
-    { bg: 'bg-fuchsia-200', text: 'text-fuchsia-900', border: 'border-fuchsia-300', light: 'dark:bg-fuchsia-500 dark:text-white dark:border-fuchsia-400' },
-    { bg: 'bg-amber-200', text: 'text-amber-900', border: 'border-amber-300', light: 'dark:bg-amber-500 dark:text-white dark:border-amber-400' },
-    { bg: 'bg-slate-200', text: 'text-slate-900', border: 'border-slate-300', light: 'dark:bg-slate-500 dark:text-white dark:border-slate-400' },
-    { bg: 'bg-yellow-200', text: 'text-yellow-900', border: 'border-yellow-300', light: 'dark:bg-yellow-500 dark:text-white dark:border-yellow-400' },
-  ];
+  dot: string;
+  borderClass: string;
+}
 
+const PALETTE: EventColor[] = [
+  {
+    bg: 'bg-[#d6e4fb]', // niebieski
+    text: 'text-[#1c3272]',
+    border: '#6f95de',
+    dot: 'bg-[#345bd1]',
+    borderClass: 'border border-[#6f95de]',
+  },
+  {
+    bg: 'bg-[#d4efe3]', // zielony
+    text: 'text-[#174735]',
+    border: '#5dbf97',
+    dot: 'bg-[#279265]',
+    borderClass: 'border border-[#5dbf97]',
+  },
+  {
+    bg: 'bg-[#e2dcfb]', // fiolet
+    text: 'text-[#372a75]',
+    border: '#8f82de',
+    dot: 'bg-[#523fd1]',
+    borderClass: 'border border-[#8f82de]',
+  },
+  {
+    bg: 'bg-[#f8ebc2]', // amber
+    text: 'text-[#5a4612]',
+    border: '#d9b94f',
+    dot: 'bg-[#b88f1f]',
+    borderClass: 'border border-[#d9b94f]',
+  },
+  {
+    bg: 'bg-[#f4d6de]', // róż
+    text: 'text-[#571f31]',
+    border: '#d97f96',
+    dot: 'bg-[#b83f61]',
+    borderClass: 'border border-[#d97f96]',
+  },
+  {
+    bg: 'bg-[#d2edf0]', // teal
+    text: 'text-[#174649]',
+    border: '#5fc0c6',
+    dot: 'bg-[#278f98]',
+    borderClass: 'border border-[#5fc0c6]',
+  },
+  {
+    bg: 'bg-[#e9daf2]', // śliwkowy
+    text: 'text-[#432552]',
+    border: '#b77fd1',
+    dot: 'bg-[#7f3fa8]',
+    borderClass: 'border border-[#b77fd1]',
+  },
+  {
+    bg: 'bg-[#f8e1d2]', // pomarańcz
+    text: 'text-[#5a2f14]',
+    border: '#d9966a',
+    dot: 'bg-[#b85c22]',
+    borderClass: 'border border-[#d9966a]',
+  },
+  {
+    bg: 'bg-[#d9e5ee]', // blue-grey
+    text: 'text-[#263845]',
+    border: '#7f9fb5',
+    dot: 'bg-[#446a85]',
+    borderClass: 'border border-[#7f9fb5]',
+  },
+  {
+    bg: 'bg-[#eaf2c8]', // oliwkowy
+    text: 'text-[#424f17]',
+    border: '#a9c94f',
+    dot: 'bg-[#6e8f1f]',
+    borderClass: 'border border-[#a9c94f]',
+  },
+  {
+    bg: 'bg-[#f2d3cc]', // ceglasty
+    text: 'text-[#571f17]',
+    border: '#d97a6a',
+    dot: 'bg-[#b83f2f]',
+    borderClass: 'border border-[#d97a6a]',
+  },
+  {
+    bg: 'bg-[#d9def6]', // denim
+    text: 'text-[#253252]',
+    border: '#7f91d6',
+    dot: 'bg-[#3f57b0]',
+    borderClass: 'border border-[#7f91d6]',
+  },
+];
+
+function hashString(str: string): number {
   let hash = 0;
-  for (let i = 0; i < eventTypeId.length; i++) {
-    const char = eventTypeId.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash & hash; // Convert to 32bit integer
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash = hash & hash;
   }
+  return Math.abs(hash);
+}
 
-  const colorIndex = Math.abs(hash) % colors.length;
-  return colors[colorIndex];
+export const getEventTypeColor = (eventTypeId: string): EventColor => {
+  if (!eventTypeId) return PALETTE[0];
+  return PALETTE[hashString(eventTypeId) % PALETTE.length];
 };
 
 export const getEventTypeColorCSS = (eventTypeId: string): string => {
-  const color = getEventTypeColor(eventTypeId);
-  return `${color.bg} ${color.light} ${color.text}`;
+  const c = getEventTypeColor(eventTypeId);
+  return `${c.bg} ${c.text}`;
 };
-
-export const getEventTypeColorBorder = (eventTypeId: string): string => {
-  const color = getEventTypeColor(eventTypeId);
-  return color.border;
-};
-
-export const getEventTypeColorBg = (eventTypeId: string): string => {
-  const color = getEventTypeColor(eventTypeId);
-  return color.bg;
-};
-
-export const getEventTypeColorText = (eventTypeId: string): string => {
-  const color = getEventTypeColor(eventTypeId);
-  return color.text;
-};
-

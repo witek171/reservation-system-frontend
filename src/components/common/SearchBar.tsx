@@ -12,21 +12,24 @@ interface SearchBarProps {
   loading?: boolean;
   resultCount?: number | null;
   resultLabel?: string;
+  className?: string;
 }
 
 const SearchBar = ({
-  value = '',
-  onChange,
-  onClear,
-  placeholder,
-  debounceMs = 300,
-  maxLength = 100,
-  loading = false,
-  resultCount = null,
-  resultLabel: _resultLabel,
-}: SearchBarProps) => {
+                     value = '',
+                     onChange,
+                     onClear,
+                     placeholder,
+                     debounceMs = 300,
+                     maxLength = 100,
+                     loading = false,
+                     resultCount = null,
+                     resultLabel: _resultLabel,
+                     className = '',
+                   }: SearchBarProps) => {
   const { t } = useI18n();
   const [inputValue, setInputValue] = useState(value);
+
   const placehold = placeholder ?? t('search.placeholder');
   const resultLabelKey = resultCount === 1 ? 'search.results' : 'search.resultsPlural';
 
@@ -40,6 +43,7 @@ const SearchBar = ({
       const trimmedValue = value.trim();
       if (trimmedInput !== trimmedValue) onChange?.(trimmedInput);
     }, debounceMs);
+
     return () => clearTimeout(timer);
   }, [inputValue, value, onChange, debounceMs]);
 
@@ -51,38 +55,42 @@ const SearchBar = ({
   const showResultCount = resultCount !== null && value.trim() !== '' && !loading;
 
   return (
-    <div className="space-y-1">
+    <div className={`space-y-2 ${className}`}>
       <div className="relative">
-        <span className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400">
+        <span className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-outline">
           <IconSearch className="h-full w-full" />
         </span>
+
         <input
           type="text"
-          className="w-full rounded-xl border border-zinc-200 bg-zinc-50/80 py-2.5 pl-10 pr-10 text-zinc-900 placeholder-zinc-400 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-primary-500 dark:focus:ring-primary-500/20"
+          className="w-full rounded-lg border border-outline-variant bg-surface py-2.5 pl-10 pr-10 font-body-sm text-body-sm text-on-surface placeholder:text-outline shadow-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           placeholder={placehold}
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           maxLength={maxLength}
         />
+
         {inputValue && (
           <button
             type="button"
             onClick={handleClear}
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-600 dark:hover:bg-zinc-700 dark:hover:text-zinc-300 transition-colors"
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-outline transition-colors hover:bg-surface-container-low hover:text-on-surface"
             title={t('common.clearSearch')}
           >
             <IconClose className="h-4 w-4" />
           </button>
         )}
       </div>
+
       {loading && (
-        <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-transparent dark:border-zinc-600" />
+        <div className="flex items-center gap-2 font-body-sm text-body-sm text-on-surface-variant">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-outline-variant border-t-primary" />
           {t('search.loading')}
         </div>
       )}
+
       {showResultCount && resultCount !== null && (
-        <span className="text-sm text-zinc-500 dark:text-zinc-400">
+        <span className="block font-body-sm text-body-sm text-on-surface-variant">
           {t(resultLabelKey, { count: resultCount })} {t('search.for')} &quot;{value}&quot;
         </span>
       )}

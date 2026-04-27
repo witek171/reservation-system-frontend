@@ -1,88 +1,75 @@
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext.tsx';
-import { useTheme } from '../context/ThemeContext.tsx';
-import { useI18n } from '../context/I18nContext.tsx';
-import RoleBadge from './common/RoleBadge.tsx';
+import { useAuth, StaffRole } from '../context/AuthContext.tsx';
 
 const Navbar = () => {
-  const { selectedCompany, logout, clearCompanySelection, userRole } = useAuth();
-  const { theme, toggleTheme } = useTheme();
-  const { locale, setLocale, t } = useI18n();
-  const navigate = useNavigate();
+  const { staffMember, selectedCompany, userRole } = useAuth();
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const getRoleLabel = (role: number | string | null | undefined) => {
+    if (typeof role === 'string') {
+      switch (role) {
+        case 'Manager': return 'Manager';
+        case 'ReceptionEmployee': return 'Recepcja';
+        case 'Trainer': return 'Trener';
+        default: return role;
+      }
+    }
+    switch (role) {
+      case StaffRole.Manager: return 'Manager';
+      case StaffRole.ReceptionEmployee: return 'Recepcja';
+      case StaffRole.Trainer: return 'Trener';
+      default: return '-';
+    }
   };
 
-  const handleChangeCompany = () => {
-    clearCompanySelection();
-    navigate('/select-company');
+  const getInitials = () => {
+    const first = staffMember?.firstName?.[0] || '';
+    const last = staffMember?.lastName?.[0] || '';
+    return `${first}${last}`.toUpperCase() || 'U';
   };
+
+  const getCompanyAddress = () => {
+    if (!selectedCompany) return '';
+    const company = selectedCompany as any;
+    if (company.address) return company.address;
+    const streetPart = [company.street, company.buildingNumber, company.localNumber ? `/${company.localNumber}` : ''].filter(Boolean).join(' ');
+    const cityPart = [company.postalCode || company.zipCode, company.city].filter(Boolean).join(' ');
+    return [streetPart, cityPart].filter(Boolean).join(', ') || '';
+  };
+
+  const roleLabel = getRoleLabel(userRole ?? staffMember?.role);
+  const companyAddress = getCompanyAddress();
 
   return (
-    <nav className="h-14 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-between px-4">
-      <div className="flex items-center gap-3">
-        {selectedCompany && (
-          <div className="flex items-center gap-2 text-zinc-700 dark:text-zinc-300">
-            <span className="font-medium">{selectedCompany.name}</span>
-            <span className="text-zinc-400">·</span>
-            <RoleBadge role={userRole ?? 0} />
+    <header className="hidden md:flex fixed top-0 z-30 ml-64 w-[calc(100%-16rem)] h-16 items-center justify-between px-6 lg:px-8 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md">
+      {/* Lewa strona — firma */}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px] text-slate-400 dark:text-slate-500">business</span>
+          <span className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+            {selectedCompany?.name || 'Brak firmy'}
+          </span>
+        </div>
+        {companyAddress && (
+          <div className="truncate text-xs text-slate-500 dark:text-slate-400 ml-[26px]">
+            {companyAddress}
           </div>
         )}
       </div>
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          onClick={() => setLocale(locale === 'en' ? 'pl' : 'en')}
-          className="px-2.5 py-1.5 rounded-md text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
-          title={locale === 'en' ? 'Polski' : 'English'}
-        >
-          {locale === 'en' ? 'PL' : 'EN'}
-        </button>
-        <button
-          type="button"
-          onClick={toggleTheme}
-          className="p-2 rounded-md text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-          title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
-        >
-          {theme === 'dark' ? (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-          ) : (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-            </svg>
-          )}
-        </button>
-        {selectedCompany && (
-          <button
-            type="button"
-            onClick={handleChangeCompany}
-            className="flex items-center gap-2 px-3 py-2 rounded-md text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-sm font-medium"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
-            {t('nav.changeCompany')}
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="flex items-center gap-2 px-3 py-2 rounded-md text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-sm font-medium"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-            <polyline points="16 17 21 12 16 7" />
-            <line x1="21" y1="12" x2="9" y2="12" />
-          </svg>
-          {t('nav.logout')}
-        </button>
+
+      {/* Prawa strona — użytkownik */}
+      <div className="ml-6 flex shrink-0 items-center gap-3 border-l border-slate-200 dark:border-slate-800 pl-6">
+        <div className="text-right">
+          <div className="text-sm font-semibold text-slate-900 dark:text-white">
+            {staffMember?.firstName || ''} {staffMember?.lastName || ''}
+          </div>
+          <div className="text-xs text-slate-500 dark:text-slate-400">
+            {roleLabel}
+          </div>
+        </div>
+        <div className="h-9 w-9 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center text-xs font-bold">
+          {getInitials()}
+        </div>
       </div>
-    </nav>
+    </header>
   );
 };
 

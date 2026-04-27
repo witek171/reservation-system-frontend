@@ -1,31 +1,27 @@
 import React, { useMemo } from 'react';
 import { useI18n } from '../../../context/I18nContext.tsx';
+import { formatToPolishTime } from '../../../utils/formatDate.ts';
 import { getEventTypeColor } from '../../../utils/colorUtils.ts';
 
 interface CalendarEvent {
   id: string;
   startTime: string;
   endTime?: string;
-  status?: string;
   eventType?: { id?: string; name?: string };
   placeName?: string;
 }
 
-interface WeekGridProps {
+interface TimeGridViewProps {
   currentDate: Date;
   eventsByDate: Record<string, CalendarEvent[]>;
   onDayClick: (date: Date) => void;
   onEventClick: (event: CalendarEvent, e?: React.MouseEvent) => void;
 }
 
-const CELL_HEIGHT = 60;
-const GRID_INTERVAL = 15;
+const HOUR_HEIGHT = 64;
 
-function formatDateKey(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+function fdk(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 function getWeekDates(date: Date): Date[] {
@@ -33,273 +29,187 @@ function getWeekDates(date: Date): Date[] {
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? -6 : 1);
   const monday = new Date(d.setDate(diff));
-
   return Array.from({ length: 7 }, (_, i) => {
-    const date = new Date(monday);
-    date.setDate(monday.getDate() + i);
-    return date;
+    const nd = new Date(monday);
+    nd.setDate(monday.getDate() + i);
+    return nd;
   });
 }
 
-const TimeGridView: React.FC<WeekGridProps> = ({
-                                                 currentDate,
-                                                 eventsByDate,
-                                                 onDayClick,
-                                                 onEventClick,
-                                               }) => {
+function toWarsawHM(dateStr: string): { hours: number; minutes: number } {
+  const parts = new Date(dateStr).toLocaleTimeString('en-GB', {
+    timeZone: 'Europe/Warsaw',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).split(':');
+  return { hours: parseInt(parts[0], 10), minutes: parseInt(parts[1], 10) };
+}
+
+function layoutEvents(events: CalendarEvent[]): { event: CalendarEvent; column: number; totalColumns: number }[] {
+  if (events.length === 0) return [];
+  const getMin = (ev: CalendarEvent) => { const { hours, minutes } = toWarsawHM(ev.startTime); return hours * 60 + minutes; };
+  const getEndMin = (ev: CalendarEvent) => { if (ev.endTime) { const { hours, minutes } = toWarsawHM(ev.endTime); return hours * 60 + minutes; } return getMin(ev) + 60; };
+  const sorted = [...events].sort((a, b) => getMin(a) - getMin(b));
+  const placed: { event: CalendarEvent; column: number; start: number; end: number }[] = [];
+  for (const ev of sorted) {
+    const start = getMin(ev), end = getEndMin(ev);
+    const overlapping = placed.filter((p) => p.start < end && p.end > start);
+    const used = new Set(overlapping.map((p) => p.column));
+    let col = 0;
+    while (used.has(col)) col++;
+    placed.push({ event: ev, column: col, start, end });
+  }
+  return placed.map((p) => {
+    const overlapping = placed.filter((o) => o.start < p.end && o.end > p.start);
+    return { event: p.event, column: p.column, totalColumns: Math.max(...overlapping.map((o) => o.column)) + 1 };
+  });
+}
+
+const TimeGridView: React.FC<TimeGridViewProps> = ({ currentDate, eventsByDate, onDayClick, onEventClick }) => {
   const { locale } = useI18n();
   const localeTag = locale === 'pl' ? 'pl-PL' : 'en-US';
-
   const weekDates = useMemo(() => getWeekDates(currentDate), [currentDate]);
 
   const { startHour, endHour } = useMemo(() => {
-    let minHour = 9;
-    let maxHour = 18;
-
+    let minH = 8, maxH = 18;
     Object.values(eventsByDate).forEach((events) => {
-      events.forEach((event) => {
-        const start = new Date(event.startTime);
-        const startH = start.getHours();
-        const startM = start.getMinutes();
-        const startDecimal = startH + startM / 60;
-
-        if (startDecimal < minHour) minHour = startDecimal;
-
-        if (event.endTime) {
-          const end = new Date(event.endTime);
-          const endH = end.getHours();
-          const endM = end.getMinutes();
-          const endDecimal = endH + endM / 60;
-          if (endDecimal > maxHour) maxHour = endDecimal;
-        } else {
-          const estimatedEnd = startDecimal + 1;
-          if (estimatedEnd > maxHour) maxHour = estimatedEnd;
-        }
+      events.forEach((ev) => {
+        const s = toWarsawHM(ev.startTime);
+        const sd = s.hours + s.minutes / 60;
+        if (sd < minH) minH = sd;
+        if (ev.endTime) {
+          const e = toWarsawHM(ev.endTime);
+          const ed = e.hours + e.minutes / 60;
+          if (ed > maxH) maxH = ed;
+        } else if (sd + 1 > maxH) maxH = sd + 1;
       });
     });
-
-    const roundedStartHour = minHour > 0.25 ? minHour - 0.25 : 0;
-    const roundedEndHour = Math.min(24, maxHour + 0.25);
-
-    const snappedStart = Math.floor(roundedStartHour * 4) / 4;
-    const snappedEnd = Math.ceil(roundedEndHour * 4) / 4;
-
-    return { startHour: snappedStart, endHour: snappedEnd };
+    return { startHour: Math.max(0, Math.floor(minH) - 1), endHour: Math.min(24, Math.ceil(maxH) + 1) };
   }, [eventsByDate]);
 
-  const HOURS = Array.from(
-    { length: Math.round((endHour - startHour) * 4) },
-    (_, i) => startHour + (i * GRID_INTERVAL) / 60
-  );
+  const hourSlots = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
+  const totalHeight = hourSlots.length * HOUR_HEIGHT;
+  const today = new Date();
 
-  const weekDayNames = useMemo(() => {
-    return weekDates.map((date) => ({
-      date,
-      dayName: date.toLocaleDateString(localeTag, { weekday: 'short' }),
-      dayNum: date.getDate(),
-    }));
-  }, [weekDates, localeTag]);
-
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString(localeTag, {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
-  };
-
-  const getEventPositionAndHeight = (
-    event: CalendarEvent,
-    startHourOffset: number
-  ) => {
-    const startDate = new Date(event.startTime);
-    const startH = startDate.getHours();
-    const startM = startDate.getMinutes();
-
-    const minutesFromGridStart = (startH - startHourOffset) * 60 + startM;
-    const topOffset = (minutesFromGridStart / GRID_INTERVAL) * CELL_HEIGHT;
-
-    let durationMinutes = 60;
+  const getEventPos = (event: CalendarEvent) => {
+    const { hours, minutes } = toWarsawHM(event.startTime);
+    const minutesFrom = (hours - startHour) * 60 + minutes;
+    const top = (minutesFrom / 60) * HOUR_HEIGHT;
+    let dur = 60;
     if (event.endTime) {
-      const endDate = new Date(event.endTime);
-      const endH = endDate.getHours();
-      const endM = endDate.getMinutes();
-      durationMinutes = (endH - startH) * 60 + (endM - startM);
+      const e = toWarsawHM(event.endTime);
+      dur = (e.hours - hours) * 60 + (e.minutes - minutes);
     }
-
-    const heightEstimate = (durationMinutes / GRID_INTERVAL) * CELL_HEIGHT;
-
-    return { topOffset, height: Math.max(heightEstimate, CELL_HEIGHT * 2) };
+    return { top, height: Math.max((dur / 60) * HOUR_HEIGHT, HOUR_HEIGHT * 0.75) };
   };
 
-  const getEventsForDay = (dateKey: string): CalendarEvent[] => {
-    return eventsByDate[dateKey] || [];
+  const getNowWarsawTop = () => {
+    const now = toWarsawHM(new Date().toISOString());
+    const minFrom = (now.hours - startHour) * 60 + now.minutes;
+    return (minFrom / 60) * HOUR_HEIGHT;
   };
-
-  const getDayKey = (date: Date) => formatDateKey(date);
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <div className="flex gap-px bg-zinc-200 dark:bg-zinc-700 overflow-x-auto">
-        <div className="w-16 flex-shrink-0 bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700" />
-        {weekDayNames.map(({ date, dayName, dayNum }) => {
-          const isToday = date.toDateString() === new Date().toDateString();
-          return (
-            <div
-              key={getDayKey(date)}
-              className={`
-                flex-1 min-w-[120px] p-2 text-center border-b border-zinc-200 dark:border-zinc-700
-                ${
-                isToday
-                  ? 'bg-primary-50 dark:bg-primary-500/10'
-                  : 'bg-zinc-50 dark:bg-zinc-800'
-              }
-              `}
-            >
-              <div className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase">
-                {dayName}
-              </div>
-              <div
-                className={`
-                  text-lg font-bold mt-1
-                  ${
-                  isToday
-                    ? 'text-primary-600 dark:text-primary-400'
-                    : 'text-zinc-800 dark:text-zinc-200'
-                }
-                `}
-              >
-                {dayNum}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="flex flex-1 overflow-auto">
-        <div
-          className="w-16 flex-shrink-0 bg-zinc-50 dark:bg-zinc-800 border-r border-zinc-200 dark:border-zinc-700"
-          style={{ minHeight: `${HOURS.length * CELL_HEIGHT}px` }}
-        >
-          {HOURS.map((hour) => {
-            const minutes = Math.round((hour - Math.floor(hour)) * 60);
-            const isFullHour = minutes === 0;
-            const hasBoldBottomBorder = minutes === 45;
-
+    <div className="flex flex-col overflow-hidden bg-surface-bright">
+      {/* Day headers */}
+      <div className="flex border-b border-surface-variant sticky top-0 bg-surface-bright z-10">
+        <div className="w-14 md:w-16 border-r border-surface-variant shrink-0" />
+        <div className="flex-1 grid grid-cols-7 divide-x divide-surface-variant">
+          {weekDates.map((date) => {
+            const isToday = date.toDateString() === today.toDateString();
             return (
               <div
-                key={hour}
-                className={`
-                  text-xs text-right pr-2 border-b
-                  ${
-                  hasBoldBottomBorder
-                    ? 'border-zinc-300 dark:border-zinc-500'
-                    : 'border-zinc-100 dark:border-zinc-700'
-                }
-                  ${
-                  isFullHour
-                    ? 'font-medium text-zinc-500 dark:text-zinc-400'
-                    : 'font-normal text-zinc-400 dark:text-zinc-600'
-                }
-                `}
-                style={{ height: `${CELL_HEIGHT}px`, lineHeight: '1' }}
+                key={fdk(date)}
+                onClick={() => onDayClick(date)}
+                className={['py-2 md:py-3 text-center cursor-pointer hover:bg-surface-container-low transition-colors', isToday ? 'bg-primary/5 border-b-2 border-primary' : ''].join(' ')}
               >
-                <div className={`pt-0.5 ${isFullHour ? 'block' : 'hidden'}`}>
-                  {String(Math.floor(hour)).padStart(2, '0')}:00
+                <div className={`font-label-bold text-label-bold uppercase text-[10px] md:text-[11px] ${isToday ? 'text-primary' : 'text-on-surface-variant'}`}>
+                  {date.toLocaleDateString(localeTag, { weekday: 'short' })}
+                </div>
+                <div className={`text-lg md:font-h3 md:text-h3 mt-0.5 ${isToday ? 'text-primary' : 'text-on-surface'}`}>
+                  {date.getDate()}
                 </div>
               </div>
             );
           })}
         </div>
+      </div>
 
-        {weekDayNames.map(({ date }) => {
-          const dayKey = getDayKey(date);
-          const dayEvents = getEventsForDay(dayKey);
-          const isToday = date.toDateString() === new Date().toDateString();
-
-          return (
-            <div
-              key={dayKey}
-              className={`
-                flex-1 min-w-[120px] relative border-r border-zinc-200 dark:border-zinc-700
-                ${
-                isToday
-                  ? 'bg-primary-50/30 dark:bg-primary-500/5'
-                  : 'bg-white dark:bg-zinc-900'
-              }
-              `}
-              style={{ minHeight: `${HOURS.length * CELL_HEIGHT}px` }}
-              onClick={() => onDayClick(date)}
-            >
-              {HOURS.map((hour, idx) => {
-                const minutes = Math.round((hour - Math.floor(hour)) * 60);
-                const hasBoldBottomBorder = minutes === 45;
-
-                return (
-                  <div
-                    key={`grid-${hour}`}
-                    className={`
-                      absolute w-full border-b
-                      ${
-                      hasBoldBottomBorder
-                        ? 'border-zinc-300 dark:border-zinc-500'
-                        : 'border-zinc-100 dark:border-zinc-700/50'
-                    }
-                    `}
-                    style={{
-                      height: `${CELL_HEIGHT}px`,
-                      top: `${idx * CELL_HEIGHT}px`,
-                      pointerEvents: 'none',
-                    }}
-                  />
-                );
-              })}
-
-              {dayEvents.map((event) => {
-                const { topOffset, height } = getEventPositionAndHeight(
-                  event,
-                  startHour
-                );
-                const color = getEventTypeColor(event.eventType?.id || '');
-
-                return (
-                  <div
-                    key={event.id}
-                    className={`
-                      absolute left-0.5 right-0.5 ${color.bg} ${color.light} ${color.text}
-                      border-l-4 rounded-sm p-1.5 cursor-pointer transition-all
-                      hover:shadow-lg hover:z-20 overflow-hidden flex flex-col text-clip
-                    `}
-                    style={{
-                      top: `${topOffset}px`,
-                      height: `${height}px`,
-                      borderLeftColor: color.border,
-                      zIndex: 5,
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEventClick(event, e);
-                    }}
-                    title={`${event.eventType?.name || 'Event'} - ${event.placeName}`}
-                  >
-                    <div className="text-[11px] font-bold whitespace-nowrap overflow-hidden text-ellipsis leading-tight">
-                      {formatTime(event.startTime)}
-                      {event.endTime && ` - ${formatTime(event.endTime)}`}
-                    </div>
-                    <div className="text-[10px] font-semibold whitespace-nowrap overflow-hidden text-ellipsis leading-tight">
-                      {event.eventType?.name || 'Event'}
-                    </div>
-                    {event.placeName && height > CELL_HEIGHT * 3 && (
-                      <div className="text-[9px] whitespace-nowrap overflow-hidden text-ellipsis opacity-85 leading-tight">
-                        {event.placeName}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+      {/* Grid */}
+      <div className="flex flex-1 overflow-auto">
+        {/* Hour labels — Warsaw time */}
+        <div className="w-14 md:w-16 border-r border-surface-variant shrink-0 bg-surface-bright relative" style={{ height: totalHeight }}>
+          {hourSlots.map((hour, i) => (
+            <div key={hour} className="absolute right-0 pr-1.5 md:pr-2 flex items-start justify-end font-label-bold text-label-bold text-outline" style={{ top: i * HOUR_HEIGHT, height: HOUR_HEIGHT }}>
+              <span className="text-[10px] md:text-[11px] mt-0.5">{String(hour).padStart(2, '0')}:00</span>
             </div>
-          );
-        })}
+          ))}
+        </div>
+
+        {/* Day columns */}
+        <div className="flex-1 grid grid-cols-7 divide-x divide-surface-variant relative" style={{ minHeight: totalHeight }}>
+          {weekDates.map((date) => {
+            const dayKey = fdk(date);
+            const dayEvents = eventsByDate[dayKey] || [];
+            const isToday = date.toDateString() === today.toDateString();
+            const laid = layoutEvents(dayEvents);
+
+            return (
+              <div key={dayKey} className={`relative cursor-pointer ${isToday ? 'bg-primary/[0.03]' : ''}`} style={{ height: totalHeight }} onClick={() => onDayClick(date)}>
+                {/* Hour lines */}
+                {hourSlots.map((_, i) => (
+                  <div key={`line-${i}`} className="absolute left-0 right-0 border-b border-surface-variant/50 pointer-events-none" style={{ top: i * HOUR_HEIGHT }} />
+                ))}
+
+                {/* Current time */}
+                {isToday && (() => {
+                  const top = getNowWarsawTop();
+                  if (top < 0 || top > totalHeight) return null;
+                  return (
+                    <div className="absolute left-0 right-0 z-20 pointer-events-none" style={{ top }}>
+                      <div className="h-0.5 bg-error w-full" />
+                      <div className="absolute -left-1.5 -top-1.5 w-3 h-3 rounded-full bg-error" />
+                    </div>
+                  );
+                })()}
+
+                {/* Events */}
+                {laid.map(({ event, column, totalColumns }) => {
+                  const { top, height } = getEventPos(event);
+                  const color = getEventTypeColor(event.eventType?.id || '');
+                  const time = formatToPolishTime(event.startTime);
+                  const endTime = event.endTime ? formatToPolishTime(event.endTime) : null;
+                  const widthPercent = 100 / totalColumns;
+                  const leftPercent = column * widthPercent;
+
+                  return (
+                    <button
+                      key={event.id}
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onEventClick(event, e); }}
+                      title={`${event.eventType?.name || ''} – ${event.placeName || ''}`}
+                      className={`absolute rounded-lg border px-1.5 md:px-2 py-1 text-left overflow-hidden transition-shadow hover:shadow-md z-10 ${color.bg} ${color.text} ${color.borderClass}`}
+                      style={{ top, height, left: `calc(${leftPercent}% + 2px)`, width: `calc(${widthPercent}% - 4px)` }}
+                    >
+                      <div className="font-label-bold text-label-bold text-[10px] md:text-[11px] truncate leading-tight">
+                        {event.eventType?.name || '—'}
+                      </div>
+                      <div className="font-body-sm text-[10px] md:text-[11px] opacity-80 mt-px truncate leading-tight">
+                        {time.time}{endTime ? ` – ${endTime.time}` : ''}
+                      </div>
+                      {event.placeName && height > HOUR_HEIGHT * 1.5 && (
+                        <div className="font-body-sm text-[10px] font-medium mt-auto truncate leading-tight opacity-70">
+                          {event.placeName}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

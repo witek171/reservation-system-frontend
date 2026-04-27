@@ -1,12 +1,12 @@
-import React, { useMemo } from 'react';
-import { useI18n } from '../../../context/I18nContext.tsx';
-import { getEventTypeColor } from '../../../utils/colorUtils.ts';
+import React, {useMemo} from 'react';
+import {useI18n} from '../../../context/I18nContext.tsx';
+import {formatToPolishTime} from '../../../utils/formatDate.ts';
+import {getEventTypeColor} from '../../../utils/colorUtils.ts';
 
 interface CalendarEvent {
   id: string;
   startTime: string;
   endTime?: string;
-  status?: string;
   eventType?: { id?: string; name?: string };
   placeName?: string;
 }
@@ -18,158 +18,106 @@ interface CalendarGridProps {
   onEventClick: (event: CalendarEvent, e?: React.MouseEvent) => void;
 }
 
-function formatDateKey(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+function fdk(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-function isSameDay(date1: Date, date2: Date): boolean {
-  return (
-    date1.getFullYear() === date2.getFullYear() &&
-    date1.getMonth() === date2.getMonth() &&
-    date1.getDate() === date2.getDate()
-  );
-}
-
-const CalendarGrid: React.FC<CalendarGridProps> = ({
-  currentDate,
-  eventsByDate,
-  onDayClick,
-  onEventClick,
-}) => {
-  const { t, locale } = useI18n();
+const CalendarGrid: React.FC<CalendarGridProps> = ({currentDate, eventsByDate, onDayClick, onEventClick}) => {
+  const {locale} = useI18n();
   const localeTag = locale === 'pl' ? 'pl-PL' : 'en-US';
-  const weekDays = useMemo(() => {
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(2024, 0, 1 + i);
-      return d.toLocaleDateString(localeTag, { weekday: 'short' });
-    });
-  }, [localeTag]);
+
+  const weekDays = useMemo(() =>
+      Array.from({length: 7}, (_, i) => new Date(2024, 0, 1 + i).toLocaleDateString(localeTag, {weekday: 'short'})),
+    [localeTag]
+  );
 
   const calendarDays = useMemo(() => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const today = new Date();
 
-    const firstDayOfMonth = new Date(year, month, 1);
-    const lastDayOfMonth = new Date(year, month + 1, 0);
-
-    let startDay = firstDayOfMonth.getDay() - 1;
+    let startDay = firstDay.getDay() - 1;
     if (startDay < 0) startDay = 6;
 
-    const daysInMonth = lastDayOfMonth.getDate();
     const days: { date: Date; dateKey: string; isCurrentMonth: boolean; isToday: boolean }[] = [];
 
-    const prevMonthLastDay = new Date(year, month, 0).getDate();
+    const prevLast = new Date(year, month, 0).getDate();
     for (let i = startDay - 1; i >= 0; i--) {
-      const date = new Date(year, month - 1, prevMonthLastDay - i);
-      days.push({
-        date,
-        dateKey: formatDateKey(date),
-        isCurrentMonth: false,
-        isToday: false,
-      });
+      const date = new Date(year, month - 1, prevLast - i);
+      days.push({date, dateKey: fdk(date), isCurrentMonth: false, isToday: false});
     }
-
-    const today = new Date();
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
       days.push({
         date,
-        dateKey: formatDateKey(date),
+        dateKey: fdk(date),
         isCurrentMonth: true,
-        isToday: isSameDay(date, today),
+        isToday: date.toDateString() === today.toDateString()
       });
     }
-
-    const remainingDays = 42 - days.length;
-    for (let day = 1; day <= remainingDays; day++) {
+    const remaining = 42 - days.length;
+    for (let day = 1; day <= remaining; day++) {
       const date = new Date(year, month + 1, day);
-      days.push({
-        date,
-        dateKey: formatDateKey(date),
-        isCurrentMonth: false,
-        isToday: false,
-      });
+      days.push({date, dateKey: fdk(date), isCurrentMonth: false, isToday: false});
     }
-
     return days;
   }, [currentDate]);
 
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString(localeTag, {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
-  };
-
   return (
-    <div className="p-0">
-      <div className="grid grid-cols-7 gap-px bg-zinc-200 dark:bg-zinc-700">
+    <div>
+      <div className="grid grid-cols-7 border-b border-surface-variant">
         {weekDays.map((day) => (
-          <div
-            key={day}
-            className="bg-zinc-50 dark:bg-zinc-800 py-1 text-center text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase"
-          >
+          <div key={day}
+               className="py-2 text-center font-label-bold text-label-bold text-on-surface-variant uppercase text-[11px]">
             {day}
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-px bg-zinc-200 dark:bg-zinc-700">
+      <div className="grid grid-cols-7">
         {calendarDays.map((dayData, index) => {
           const dayEvents = eventsByDate[dayData.dateKey] || [];
 
           return (
             <div
               key={index}
-              className={`
-                min-h-[100px] p-0.5 flex flex-col cursor-pointer transition-colors
-                bg-white dark:bg-zinc-900
-                hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50
-                ${!dayData.isCurrentMonth ? 'bg-zinc-50 dark:bg-zinc-800/50' : ''}
-                ${dayData.isToday ? 'bg-primary-100 dark:bg-primary-500/10 ring-primary-400 dark:ring-primary-500/50' : ''}
-              `}
               onClick={() => onDayClick(dayData.date)}
+              className={[
+                'min-h-[80px] md:min-h-[100px] p-1 md:p-1.5 flex flex-col cursor-pointer transition-colors border-b border-r border-surface-variant',
+                dayData.isToday ? 'bg-primary/5' : dayData.isCurrentMonth ? 'bg-surface-bright hover:bg-surface-container-low' : 'bg-surface-container-low/60 hover:bg-surface-container',
+              ].join(' ')}
             >
-              <span
-                className={`
-                  text-[11px] font-semibold w-6 h-6 flex items-center justify-center rounded-full mb-0.5 shrink-0
-                  ${dayData.isToday ? 'bg-primary-200 text-white dark:bg-primary-400 dark:text-zinc-900' : ''}
-                  ${!dayData.isCurrentMonth ? 'text-zinc-400 dark:text-zinc-500' : 'text-zinc-800 dark:text-zinc-200'}
-                `}
-              >
+              <span className={[
+                'mb-0.5 inline-flex h-6 w-6 md:h-7 md:w-7 items-center justify-center rounded-full text-[11px] font-semibold self-start',
+                dayData.isToday ? 'bg-primary text-on-primary' : dayData.isCurrentMonth ? 'text-on-surface' : 'text-outline',
+              ].join(' ')}>
                 {dayData.date.getDate()}
               </span>
 
-              <div className="flex flex-col gap-px flex-1 min-h-0 overflow-hidden">
-               {dayEvents.slice(0, 3).map((event) => {
-                    const color = getEventTypeColor(event.eventType?.id || '');
-                    const borderColor = color.border;
-                    return (
-                      <div
-                        key={event.id}
-                        className={`flex items-center gap-1.5 py-1 px-1.5 rounded-sm border-l-2 text-[11px] font-medium cursor-pointer transition-colors overflow-hidden text-ellipsis whitespace-nowrap ${color.bg} ${color.light} ${color.text}`}
-                        style={{ borderLeftColor: borderColor }}
-                        onClick={(e) => onEventClick(event, e)}
-                        title={`${event.eventType?.name || 'Event'} - ${event.placeName}`}
-                      >
-                        <span className="font-bold text-inherit shrink-0">
-                          {formatTime(event.startTime)}
-                        </span>
-                        <span className="text-inherit overflow-hidden text-ellipsis">
-                          {event.eventType?.name || 'Event'}
-                        </span>
-                      </div>
-                    );
-                  })}
-
+              <div className="flex flex-col gap-0.5 overflow-hidden flex-1">
+                {dayEvents.slice(0, 3).map((event) => {
+                  const color = getEventTypeColor(event.eventType?.id || '');
+                  const time = formatToPolishTime(event.startTime);
+                  return (
+                    <button
+                      key={event.id}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEventClick(event, e);
+                      }}
+                      title={`${event.eventType?.name || ''} – ${event.placeName || ''}`}
+                      className={`w-full text-left flex items-center gap-1 rounded border px-1 py-px text-[10px] md:text-[11px] font-medium truncate hover:opacity-80 transition-opacity ${color.bg} ${color.text} ${color.borderClass}`}
+                    >
+                      <span className="font-bold shrink-0">{time.time}</span>
+                      <span className="truncate hidden sm:inline">{event.eventType?.name || ''}</span>
+                    </button>
+                  );
+                })}
                 {dayEvents.length > 3 && (
-                  <span className="text-[9px] text-zinc-400 dark:text-zinc-500 py-0.5 px-1">
-                    {t('schedule.more', { count: dayEvents.length - 3 })}
-                  </span>
+                  <span className="text-[10px] text-on-surface-variant px-1">+{dayEvents.length - 3}</span>
                 )}
               </div>
             </div>

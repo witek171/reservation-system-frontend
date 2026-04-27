@@ -3,7 +3,9 @@ import { companyApi } from '../services/api.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useI18n } from '../context/I18nContext.tsx';
 import type { Company } from '../types/api.ts';
-import { IconBuilding, IconClock, IconEdit, IconClose } from './common/Icons.tsx';
+import ErrorModal from './common/ErrorModal.tsx';
+import { formatPhone } from '../utils/formatPhone.ts';
+import { formatToPolishTime } from '../utils/formatDate.ts';
 
 interface CompanyData extends Company {
   taxCode?: string;
@@ -19,17 +21,20 @@ interface CompanyData extends Company {
   createdAt?: string;
 }
 
-const formInput =
-  'w-full rounded-xl border border-zinc-200 bg-zinc-50/80 px-3 py-2.5 text-zinc-900 placeholder-zinc-400 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-primary-500 dark:focus:ring-primary-500/20';
+const inputClass =
+  'w-full rounded-xl border border-outline-variant bg-surface px-4 py-2.5 text-on-surface placeholder:text-outline focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all';
 
 const CompanySettings = () => {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const { selectedCompany, selectCompany, isManager } = useAuth();
   const [companyData, setCompanyData] = useState<CompanyData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<unknown>(null);
+  const [error, setError] = useState<string | { message?: string } | null>(null);
   const [editing, setEditing] = useState(false);
   const [editingBreakTimes, setEditingBreakTimes] = useState(false);
+  const [receptionLoading, setReceptionLoading] = useState(false);
+  const [loading, setLoading] = useState(true);        // initial load only
+  const [saving, setSaving] = useState(false);          // form submissions
+
   const [formData, setFormData] = useState({
     name: '',
     taxCode: '',
@@ -39,14 +44,18 @@ const CompanySettings = () => {
     phone: '',
     email: '',
   });
-  const [breakTimesData, setBreakTimesData] = useState({ breakTimeStaff: 0, breakTimeParticipants: 0 });
+
+  const [breakTimesData, setBreakTimesData] = useState({
+    breakTimeStaff: 0,
+    breakTimeParticipants: 0,
+  });
 
   const companyId = selectedCompany?.id;
 
-  const fetchCompany = async () => {
+  const fetchCompany = async (silent = false) => {
     if (!companyId) return;
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       setError(null);
       const response = await companyApi.getById(companyId);
       const data = response.data as CompanyData;
@@ -62,12 +71,25 @@ const CompanySettings = () => {
       });
       try {
         const breakRes = await companyApi.getBreakTimes(companyId);
-        const bt = breakRes.data as { breakTimeStaff?: number; breakTimeParticipants?: number };
+        const bt = breakRes.data as {
+          breakTimeStaff?: number;
+          breakTimeParticipants?: number;
+        };
         setBreakTimesData({
           breakTimeStaff: bt.breakTimeStaff ?? data.breakTimeStaff ?? 0,
-          breakTimeParticipants: bt.breakTimeParticipants ?? data.breakTimeParticipants ?? 0,
+          breakTimeParticipants:
+            bt.breakTimeParticipants ?? data.breakTimeParticipants ?? 0,
         });
-        setCompanyData((prev) => (prev ? { ...prev, breakTimeStaff: bt.breakTimeStaff ?? prev.breakTimeStaff, breakTimeParticipants: bt.breakTimeParticipants ?? prev.breakTimeParticipants } : prev));
+        setCompanyData((prev) =>
+          prev
+            ? {
+              ...prev,
+              breakTimeStaff: bt.breakTimeStaff ?? prev.breakTimeStaff,
+              breakTimeParticipants:
+                bt.breakTimeParticipants ?? prev.breakTimeParticipants,
+            }
+            : prev
+        );
       } catch {
         setBreakTimesData({
           breakTimeStaff: data.breakTimeStaff ?? 0,
@@ -75,29 +97,28 @@ const CompanySettings = () => {
         });
       }
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } }; message?: string };
-      setError(e.response?.data?.message ?? e.message);
+      const e = err as any;
+      setError(e.response?.data?.message ?? e.response?.data ?? e.message ?? null);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (companyId) fetchCompany();
-  }, [companyId]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!companyId || !selectedCompany) return;
     try {
+      setSaving(true);
       setError(null);
       await companyApi.update(companyId, formData);
-      await fetchCompany();
+      await fetchCompany(true);          // silent — no spinner
       setEditing(false);
       selectCompany({ ...selectedCompany, ...formData });
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } }; message?: string };
-      setError(e.response?.data?.message ?? e.response?.data ?? e.message);
+      const e = err as any;
+      setError(e.response?.data?.message ?? e.response?.data ?? e.message ?? null);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -105,51 +126,56 @@ const CompanySettings = () => {
     e.preventDefault();
     if (!companyId) return;
     try {
+      setSaving(true);
       setError(null);
       await companyApi.updateBreakTimes(companyId, {
         breakTimeStaff: Number(breakTimesData.breakTimeStaff),
         breakTimeParticipants: Number(breakTimesData.breakTimeParticipants),
       });
-      await fetchCompany();
+      await fetchCompany(true);          // silent — no spinner
       setEditingBreakTimes(false);
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } }; message?: string };
-      setError(e.response?.data?.message ?? e.message);
+      const e = err as any;
+      setError(e.response?.data?.message ?? e.response?.data ?? e.message ?? null);
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleMarkAsReception = async () => {
-    if (!companyId) return;
+  useEffect(() => {
+    if (companyId) fetchCompany();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId]);
+
+  const handleToggleReception = async () => {
+    if (!companyId || receptionLoading) return;
+    const wasReception = companyData?.isReception;
     try {
-      await companyApi.markAsReception(companyId);
-      await fetchCompany();
+      setReceptionLoading(true);
+      setError(null);
+      // Optimistic update
+      setCompanyData((prev) => (prev ? { ...prev, isReception: !wasReception } : prev));
+      if (wasReception) {
+        await companyApi.unmarkAsReception(companyId);
+      } else {
+        await companyApi.markAsReception(companyId);
+      }
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } }; message?: string };
-      setError(e.response?.data?.message ?? e.message);
+      const e = err as any;
+      // Revert on error
+      setCompanyData((prev) => (prev ? { ...prev, isReception: wasReception } : prev));
+      setError(e.response?.data?.message ?? e.response?.data ?? e.message ?? null);
+    } finally {
+      setReceptionLoading(false);
     }
   };
 
-  const handleUnmarkAsReception = async () => {
-    if (!companyId) return;
-    try {
-      await companyApi.unmarkAsReception(companyId);
-      await fetchCompany();
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } }; message?: string };
-      setError(e.response?.data?.message ?? e.message);
-    }
-  };
-
-  const formatDateTime = (dateString?: string) =>
-    dateString
-      ? new Date(dateString).toLocaleDateString(locale === 'pl' ? 'pl-PL' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-      : '-';
-
+  // ── Loading ──
   if (loading) {
     return (
-      <div className="rounded-2xl border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900 shadow-soft dark:shadow-soft-dark">
-        <div className="flex items-center justify-center gap-3 text-zinc-500 dark:text-zinc-400">
-          <span className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-300 border-t-transparent dark:border-zinc-600" />
+      <div className="rounded-2xl border border-surface-variant bg-surface-container-lowest p-8">
+        <div className="flex items-center justify-center gap-3 text-on-surface-variant">
+          <span className="h-5 w-5 animate-spin rounded-full border-2 border-outline-variant border-t-primary" />
           {t('settings.loading')}
         </div>
       </div>
@@ -158,157 +184,363 @@ const CompanySettings = () => {
 
   if (!companyData) {
     return (
-      <div className="rounded-2xl border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900 shadow-soft dark:shadow-soft-dark">
-        <p className="text-center text-zinc-500 dark:text-zinc-400">{t('settings.noCompanyData')}</p>
+      <div className="rounded-2xl border border-surface-variant bg-surface-container-lowest p-8">
+        <p className="text-center font-body-md text-body-md text-on-surface-variant">
+          {t('settings.noCompanyData')}
+        </p>
       </div>
     );
   }
 
+  // ── Helpers ──
+  const { date: createdDate, time: createdTime } = formatToPolishTime(companyData.createdAt);
+
+  const Field = ({
+                   label,
+                   value,
+                   wide,
+                 }: {
+    label: string;
+    value?: string | null;
+    wide?: boolean;
+  }) => (
+    <div className={wide ? 'sm:col-span-2' : undefined}>
+      <span className="font-body-sm text-body-sm text-on-surface-variant">{label}</span>
+      <p className="font-body-md text-body-md text-on-surface mt-0.5">{value || '-'}</p>
+    </div>
+  );
+
+  // ── Render ──
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900 shadow-soft dark:shadow-soft-dark">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h3 className="flex items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-            <IconBuilding className="w-5 h-5 text-primary-500 dark:text-primary-400" />
-            {t('settings.companyDetails')}
-          </h3>
+      {error && <ErrorModal error={error} onClose={() => setError(null)} />}
+
+      {/* Page header */}
+      <div>
+        <h1 className="font-h2 text-h2 text-on-surface">{t('settings.title')}</h1>
+        <p className="font-body-md text-body-md text-on-surface-variant mt-1">
+          {t('settings.subtitle')}
+        </p>
+      </div>
+
+      {/* ═══ Company details card ═══ */}
+      <div className="w-full bg-surface-container-lowest rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-surface-variant overflow-hidden">
+        {/* Card header */}
+        <div className="p-4 md:p-6 border-b border-surface-variant flex items-center justify-between gap-4 bg-surface-bright">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[20px] text-primary">business</span>
+            <h2 className="font-h3 text-h3 text-on-surface">{t('settings.companyDetails')}</h2>
+          </div>
           {!editing && isManager() && (
             <button
               type="button"
               onClick={() => setEditing(true)}
-              className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50/80 px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 transition-colors"
+              className="flex items-center gap-2 rounded-lg border border-outline-variant bg-surface px-4 py-2.5 font-label-bold text-label-bold text-on-surface hover:bg-surface-container-low transition-colors"
             >
-              <IconEdit className="w-4 h-4" />
+              <span className="material-symbols-outlined text-[18px]">edit</span>
               {t('common.edit')}
             </button>
           )}
         </div>
-        {error != null ? (
-          <div className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-400">
-            {String(error)}
-          </div>
-        ) : null}
-        {editing ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">{t('settings.companyName')} *</label>
-              <input type="text" className={formInput} placeholder={t('settings.companyName')} value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">{t('settings.taxCode')} *</label>
-                <input type="text" className={formInput} placeholder={t('settings.taxCode')} value={formData.taxCode} onChange={(e) => setFormData({ ...formData, taxCode: e.target.value })} required />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">{t('common.email')} *</label>
-                <input type="email" className={formInput} placeholder="company@example.com" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required />
-              </div>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">{t('settings.street')} *</label>
-              <input type="text" className={formInput} placeholder={t('settings.street')} value={formData.street} onChange={(e) => setFormData({ ...formData, street: e.target.value })} required />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">{t('settings.city')} *</label>
-                <input type="text" className={formInput} placeholder={t('settings.city')} value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} required />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">{t('settings.postalCode')} *</label>
-                <input type="text" className={formInput} placeholder="00-000" value={formData.postalCode} onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })} required />
-              </div>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">{t('common.phone')} *</label>
-              <input type="tel" className={formInput} placeholder="+48 000 000 000" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} required />
-            </div>
-            <div className="flex gap-2">
-              <button type="submit" className="rounded-xl border border-primary-300 bg-primary-500/15 px-4 py-2.5 text-sm font-medium text-primary-700 hover:bg-primary-500/25 dark:border-primary-600 dark:bg-primary-500/20 dark:text-primary-200 dark:hover:bg-primary-500/30 transition-colors">
-                {t('common.save')}
-              </button>
-              <button type="button" onClick={() => setEditing(false)} className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 transition-colors">
-                <IconClose className="w-4 h-4" />
-                {t('common.cancel')}
-              </button>
-            </div>
-          </form>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div><span className="text-sm text-zinc-500 dark:text-zinc-400">{t('settings.companyName')}</span><p className="font-medium text-zinc-900 dark:text-zinc-100">{companyData.name}</p></div>
-            <div><span className="text-sm text-zinc-500 dark:text-zinc-400">{t('settings.taxCode')}</span><p className="text-zinc-900 dark:text-zinc-100">{companyData.taxCode}</p></div>
-            <div><span className="text-sm text-zinc-500 dark:text-zinc-400">{t('common.email')}</span><p className="text-zinc-900 dark:text-zinc-100">{companyData.email}</p></div>
-            <div><span className="text-sm text-zinc-500 dark:text-zinc-400">{t('common.phone')}</span><p className="text-zinc-900 dark:text-zinc-100">{companyData.phone}</p></div>
-            <div className="sm:col-span-2"><span className="text-sm text-zinc-500 dark:text-zinc-400">{t('settings.address')}</span><p className="text-zinc-900 dark:text-zinc-100">{companyData.street}, {companyData.postalCode} {companyData.city}</p></div>
-            <div><span className="text-sm text-zinc-500 dark:text-zinc-400">{t('settings.created')}</span><p className="text-zinc-900 dark:text-zinc-100">{formatDateTime(companyData.createdAt)}</p></div>
-          </div>
-        )}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800">
-          <div>
-            <h5 className="font-medium text-zinc-900 dark:text-zinc-100">{t('settings.receptionMode')}</h5>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              {companyData.isReception ? t('settings.receptionOn') : t('settings.receptionOff')}
-            </p>
-          </div>
-          {isManager() && (
-            <button
-              type="button"
-              onClick={companyData.isReception ? handleUnmarkAsReception : handleMarkAsReception}
-              className="rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
-            >
-              {companyData.isReception ? t('settings.disable') : t('settings.enable')}
-            </button>
-          )}
-        </div>
-      </div>
 
-      {isManager() && (
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900 shadow-soft dark:shadow-soft-dark">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <h3 className="flex items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-              <IconClock className="w-5 h-5 text-primary-500 dark:text-primary-400" />
-              {t('settings.breakTimes')}
-            </h3>
-            {!editingBreakTimes && (
-              <button type="button" onClick={() => setEditingBreakTimes(true)} className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50/80 px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 transition-colors">
-                <IconEdit className="w-4 h-4" />
-                {t('common.edit')}
-              </button>
-            )}
-          </div>
-          {editingBreakTimes ? (
-            <form onSubmit={handleBreakTimesSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+        {/* Card body */}
+        <div className="p-4 md:p-6 space-y-6">
+          {editing ? (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="mb-2 block font-body-md text-body-md text-on-surface-variant">
+                  {t('settings.companyName')} *
+                </label>
+                <input
+                  type="text"
+                  className={inputClass}
+                  placeholder={t('settings.companyName')}
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">{t('settings.staffBreak')} *</label>
-                  <input type="number" className={formInput} min={0} value={breakTimesData.breakTimeStaff} onChange={(e) => setBreakTimesData({ ...breakTimesData, breakTimeStaff: Number(e.target.value) })} required />
+                  <label className="mb-2 block font-body-md text-body-md text-on-surface-variant">
+                    {t('settings.taxCode')} *
+                  </label>
+                  <input
+                    type="text"
+                    className={inputClass}
+                    placeholder={t('settings.taxCode')}
+                    value={formData.taxCode}
+                    onChange={(e) => setFormData({ ...formData, taxCode: e.target.value })}
+                    required
+                  />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">{t('settings.participantBreak')} *</label>
-                  <input type="number" className={formInput} min={0} value={breakTimesData.breakTimeParticipants} onChange={(e) => setBreakTimesData({ ...breakTimesData, breakTimeParticipants: Number(e.target.value) })} required />
+                  <label className="mb-2 block font-body-md text-body-md text-on-surface-variant">
+                    {t('common.email')} *
+                  </label>
+                  <input
+                    type="email"
+                    className={inputClass}
+                    placeholder="company@example.com"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    required
+                  />
                 </div>
               </div>
-              <div className="flex gap-2">
-                <button type="submit" className="rounded-xl border border-primary-300 bg-primary-500/15 px-4 py-2.5 text-sm font-medium text-primary-700 hover:bg-primary-500/25 dark:border-primary-600 dark:bg-primary-500/20 dark:text-primary-200 dark:hover:bg-primary-500/30 transition-colors">
-                  {t('settings.saveBreakTimes')}
+
+              <div>
+                <label className="mb-2 block font-body-md text-body-md text-on-surface-variant">
+                  {t('settings.street')} *
+                </label>
+                <input
+                  type="text"
+                  className={inputClass}
+                  placeholder={t('settings.street')}
+                  value={formData.street}
+                  onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-2 block font-body-md text-body-md text-on-surface-variant">
+                    {t('settings.city')} *
+                  </label>
+                  <input
+                    type="text"
+                    className={inputClass}
+                    placeholder={t('settings.city')}
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block font-body-md text-body-md text-on-surface-variant">
+                    {t('settings.postalCode')} *
+                  </label>
+                  <input
+                    type="text"
+                    className={inputClass}
+                    placeholder="00-000"
+                    value={formData.postalCode}
+                    onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block font-body-md text-body-md text-on-surface-variant">
+                  {t('common.phone')} *
+                </label>
+                <input
+                  type="tel"
+                  className={inputClass}
+                  placeholder="+48 000 000 000"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 bg-primary hover:bg-primary-hover text-on-primary font-label-bold text-label-bold py-3 px-6 rounded-lg shadow-sm transition-colors"
+                >
+                  {t('common.save')}
                 </button>
-                <button type="button" onClick={() => setEditingBreakTimes(false)} className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 transition-colors">
-                  <IconClose className="w-4 h-4" />
+                <button
+                  type="button"
+                  onClick={() => setEditing(false)}
+                  className="px-6 py-3 border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface hover:bg-surface-container-low transition-colors"
+                >
                   {t('common.cancel')}
                 </button>
               </div>
             </form>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('settings.staffBreak')}</p>
-                <p className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">{companyData.breakTimeStaff ?? 0} min</p>
-              </div>
-              <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('settings.participantBreak')}</p>
-                <p className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">{companyData.breakTimeParticipants ?? 0} min</p>
+              <Field label={t('settings.companyName')} value={companyData.name} />
+              <Field label={t('settings.taxCode')} value={companyData.taxCode} />
+              <Field label={t('common.email')} value={companyData.email} />
+              <Field label={t('common.phone')} value={formatPhone(companyData.phone)} />
+              <Field
+                label={t('settings.address')}
+                value={`${companyData.street}, ${companyData.postalCode} ${companyData.city}`}
+                wide
+              />
+              <div>
+                <span className="font-body-sm text-body-sm text-on-surface-variant">
+                  {t('settings.created')}
+                </span>
+                <div className="flex flex-col gap-0.5 mt-0.5">
+                  <span className="font-body-md text-body-md text-on-surface">{createdDate}</span>
+                  <span className="font-body-sm text-body-sm text-on-surface-variant">
+                    {createdTime}
+                  </span>
+                </div>
               </div>
             </div>
           )}
+
+          {/* Reception mode toggle */}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-surface-variant bg-surface-container-low p-4">
+            <div>
+              <p className="font-body-md text-body-md text-on-surface font-semibold">
+                {t('settings.receptionMode')}
+              </p>
+              <p className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
+                {companyData.isReception
+                  ? t('settings.receptionOn')
+                  : t('settings.receptionOff')}
+              </p>
+            </div>
+            {isManager() && (
+              <button
+                type="button"
+                disabled={receptionLoading}
+                onClick={handleToggleReception}
+                className={`rounded-lg border px-4 py-2.5 font-label-bold text-label-bold transition-colors flex items-center gap-2 ${
+                  companyData.isReception
+                    ? 'border-error text-error hover:bg-error-container'
+                    : 'border-outline-variant text-on-surface hover:bg-surface-container'
+                } ${receptionLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
+              >
+                {receptionLoading && (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                )}
+                {companyData.isReception
+                  ? t('settings.disable')
+                  : t('settings.enable')}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ═══ Break times card (manager only) ═══ */}
+      {isManager() && (
+        <div className="w-full bg-surface-container-lowest rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-surface-variant overflow-hidden">
+          {/* Card header */}
+          <div className="p-4 md:p-6 border-b border-surface-variant flex items-center justify-between gap-4 bg-surface-bright">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[20px] text-primary">schedule</span>
+              <h2 className="font-h3 text-h3 text-on-surface">{t('settings.breakTimes')}</h2>
+            </div>
+            {!editingBreakTimes && (
+              <button
+                type="button"
+                onClick={() => setEditingBreakTimes(true)}
+                className="flex items-center gap-2 rounded-lg border border-outline-variant bg-surface px-4 py-2.5 font-label-bold text-label-bold text-on-surface hover:bg-surface-container-low transition-colors"
+              >
+                <span className="material-symbols-outlined text-[18px]">edit</span>
+                {t('common.edit')}
+              </button>
+            )}
+          </div>
+
+          {/* Card body */}
+          <div className="p-4 md:p-6">
+            {editingBreakTimes ? (
+              <form onSubmit={handleBreakTimesSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-2 block font-body-md text-body-md text-on-surface-variant">
+                      {t('settings.staffBreak')} *
+                    </label>
+                    <input
+                      type="number"
+                      className={inputClass}
+                      min={0}
+                      value={breakTimesData.breakTimeStaff}
+                      onChange={(e) =>
+                        setBreakTimesData({
+                          ...breakTimesData,
+                          breakTimeStaff: Number(e.target.value),
+                        })
+                      }
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-2 block font-body-md text-body-md text-on-surface-variant">
+                      {t('settings.participantBreak')} *
+                    </label>
+                    <input
+                      type="number"
+                      className={inputClass}
+                      min={0}
+                      value={breakTimesData.breakTimeParticipants}
+                      onChange={(e) =>
+                        setBreakTimesData({
+                          ...breakTimesData,
+                          breakTimeParticipants: Number(e.target.value),
+                        })
+                      }
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="flex-1 bg-primary hover:bg-primary-hover text-on-primary font-label-bold text-label-bold py-3 px-6 rounded-lg shadow-sm transition-colors"
+                  >
+                    {t('settings.saveBreakTimes')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingBreakTimes(false)}
+                    className="px-6 py-3 border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface hover:bg-surface-container-low transition-colors"
+                  >
+                    {t('common.cancel')}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {/* Staff break tile */}
+                <div className="rounded-xl border border-surface-variant bg-surface-container-low p-4 flex items-center gap-4">
+                  <div className="h-10 w-10 rounded-full bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center shrink-0">
+                    <span className="material-symbols-outlined text-[20px]">person</span>
+                  </div>
+                  <div>
+                    <p className="font-body-sm text-body-sm text-on-surface-variant">
+                      {t('settings.staffBreak')}
+                    </p>
+                    <p className="font-h3 text-h3 text-on-surface">
+                      {companyData.breakTimeStaff ?? 0}{' '}
+                      <span className="font-body-md text-body-md text-on-surface-variant">min</span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Participant break tile */}
+                <div className="rounded-xl border border-surface-variant bg-surface-container-low p-4 flex items-center gap-4">
+                  <div className="h-10 w-10 rounded-full bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center shrink-0">
+                    <span className="material-symbols-outlined text-[20px]">group</span>
+                  </div>
+                  <div>
+                    <p className="font-body-sm text-body-sm text-on-surface-variant">
+                      {t('settings.participantBreak')}
+                    </p>
+                    <p className="font-h3 text-h3 text-on-surface">
+                      {companyData.breakTimeParticipants ?? 0}{' '}
+                      <span className="font-body-md text-body-md text-on-surface-variant">min</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

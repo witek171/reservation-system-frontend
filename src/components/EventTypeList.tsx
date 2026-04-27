@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { eventTypeApi } from '../services/api.ts';
-import { useAuth } from '../context/AuthContext.tsx';
-import { useI18n } from '../context/I18nContext.tsx';
+import {useState, useEffect, useCallback, useRef} from 'react';
+import {useSearchParams} from 'react-router-dom';
+import {eventTypeApi} from '../services/api.ts';
+import {useAuth} from '../context/AuthContext.tsx';
+import {useI18n} from '../context/I18nContext.tsx';
 import ErrorModal from './common/ErrorModal.tsx';
 import ModalPortal from './common/ModalPortal.tsx';
 import Pagination from './common/Pagination.tsx';
@@ -30,8 +30,8 @@ const createInitialFormData = () => ({
 const pageSize = 10;
 
 const EventTypeList = () => {
-  const { t } = useI18n();
-  const { selectedCompany, isTrainer } = useAuth();
+  const {t} = useI18n();
+  const {selectedCompany, isTrainer} = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [eventTypes, setEventTypes] = useState<EventTypeItem[]>([]);
@@ -83,7 +83,7 @@ const EventTypeList = () => {
   }, []);
 
   const openCreateModal = useCallback(() => {
-    setSearchParams({ modal: 'create' }, { replace: false });
+    setSearchParams({modal: 'create'}, {replace: false});
     setModalType(null);
     setFormData(createInitialFormData());
     setIsEditing(false);
@@ -100,7 +100,7 @@ const EventTypeList = () => {
       setIsEditing(true);
       closeDropdown();
       setMobileActionsType(null);
-      setSearchParams(params, { replace: false });
+      setSearchParams(params, {replace: false});
     },
     [searchParams, setSearchParams, applyTypeToForm, closeDropdown]
   );
@@ -114,7 +114,7 @@ const EventTypeList = () => {
     setIsEditing(false);
     closeDropdown();
     setMobileActionsType(null);
-    setSearchParams(params, { replace: true });
+    setSearchParams(params, {replace: true});
   }, [searchParams, setSearchParams, closeDropdown]);
 
   // --- Sync URL → modal state ---
@@ -146,7 +146,7 @@ const EventTypeList = () => {
     try {
       setLoading(true);
       setError(null);
-      const params: Record<string, unknown> = { page: currentPage, pageSize };
+      const params: Record<string, unknown> = {page: currentPage, pageSize};
       if (searchQuery.trim()) params.search = searchQuery.trim();
       const response = await eventTypeApi.getAll(companyId, params);
       const data = response.data as {
@@ -167,7 +167,7 @@ const EventTypeList = () => {
       const e = err as { response?: { data?: { message?: string } }; message?: string };
       setError(e.response?.data?.message ?? (e.response?.data as string) ?? e.message ?? null);
       setEventTypes([]);
-      setPagination({ page: 0, pageSize, totalCount: 0, totalPages: 1 });
+      setPagination({page: 0, pageSize, totalCount: 0, totalPages: 1});
     } finally {
       setLoading(false);
     }
@@ -182,7 +182,7 @@ const EventTypeList = () => {
     if (!shouldScrollToTopRef.current || loading) return;
     shouldScrollToTopRef.current = false;
     requestAnimationFrame(() => {
-      listTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      listTopRef.current?.scrollIntoView({behavior: 'smooth', block: 'start'});
     });
   }, [loading, pagination.page]);
 
@@ -195,7 +195,7 @@ const EventTypeList = () => {
       newParams.delete('search');
     }
     newParams.delete('page');
-    setSearchParams(newParams, { replace: true });
+    setSearchParams(newParams, {replace: true});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery]);
 
@@ -208,14 +208,14 @@ const EventTypeList = () => {
     } else {
       newParams.delete('page');
     }
-    setSearchParams(newParams, { replace: false });
+    setSearchParams(newParams, {replace: false});
   };
 
   // --- Refresh ---
   const refreshEventTypes = async () => {
     if (!companyId) return;
     try {
-      const params: Record<string, unknown> = { page: currentPage, pageSize };
+      const params: Record<string, unknown> = {page: currentPage, pageSize};
       if (searchQuery.trim()) params.search = searchQuery.trim();
       const response = await eventTypeApi.getAll(companyId, params);
       const data = response.data as {
@@ -232,7 +232,8 @@ const EventTypeList = () => {
         totalCount: data.totalCount || 0,
         totalPages: data.totalPages || 1,
       });
-    } catch (_) {}
+    } catch (_) {
+    }
   };
 
   // --- Submit ---
@@ -292,7 +293,7 @@ const EventTypeList = () => {
     return (
       <div className="rounded-2xl border border-surface-variant bg-surface-container-lowest p-8">
         <div className="flex items-center justify-center gap-3 text-on-surface-variant">
-          <span className="h-5 w-5 animate-spin rounded-full border-2 border-outline-variant border-t-primary" />
+          <span className="h-5 w-5 animate-spin rounded-full border-2 border-outline-variant border-t-primary"/>
           {t('loading')}
         </div>
       </div>
@@ -304,7 +305,7 @@ const EventTypeList = () => {
 
   return (
     <div className="space-y-6">
-      {error && <ErrorModal error={error} onClose={() => setError(null)} />}
+      {error && <ErrorModal error={error} onClose={() => setError(null)}/>}
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -351,26 +352,33 @@ const EventTypeList = () => {
           <table className="hidden md:table w-full text-left border-collapse">
             <thead>
             <tr className="border-b border-surface-variant bg-surface-container-low">
-              <th className="py-4 px-6 font-label-bold text-label-bold text-on-surface-variant uppercase tracking-wider whitespace-nowrap">
+              <th
+                className="py-4 px-6 font-label-bold text-label-bold text-on-surface-variant uppercase tracking-wider whitespace-nowrap">
                 {t('common.name')}
               </th>
-              <th className="py-4 px-6 font-label-bold text-label-bold text-on-surface-variant uppercase tracking-wider whitespace-nowrap">
+              <th
+                className="py-4 px-6 font-label-bold text-label-bold text-on-surface-variant uppercase tracking-wider whitespace-nowrap">
                 {t('common.description')}
               </th>
-              <th className="py-4 px-6 font-label-bold text-label-bold text-on-surface-variant uppercase tracking-wider whitespace-nowrap">
+              <th
+                className="py-4 px-6 font-label-bold text-label-bold text-on-surface-variant uppercase tracking-wider whitespace-nowrap">
                 {t('eventTypes.duration')}
               </th>
-              <th className="py-4 px-6 font-label-bold text-label-bold text-on-surface-variant uppercase tracking-wider whitespace-nowrap">
+              <th
+                className="py-4 px-6 font-label-bold text-label-bold text-on-surface-variant uppercase tracking-wider whitespace-nowrap">
                 {t('eventTypes.price')}
               </th>
-              <th className="py-4 px-6 font-label-bold text-label-bold text-on-surface-variant uppercase tracking-wider whitespace-nowrap">
+              <th
+                className="py-4 px-6 font-label-bold text-label-bold text-on-surface-variant uppercase tracking-wider whitespace-nowrap">
                 {t('eventTypes.maxParticipants')}
               </th>
-              <th className="py-4 px-6 font-label-bold text-label-bold text-on-surface-variant uppercase tracking-wider whitespace-nowrap">
+              <th
+                className="py-4 px-6 font-label-bold text-label-bold text-on-surface-variant uppercase tracking-wider whitespace-nowrap">
                 {t('eventTypes.minStaff')}
               </th>
               {!isTrainer() && (
-                <th className="py-4 px-6 font-label-bold text-label-bold text-on-surface-variant uppercase tracking-wider text-right whitespace-nowrap">
+                <th
+                  className="py-4 px-6 font-label-bold text-label-bold text-on-surface-variant uppercase tracking-wider text-right whitespace-nowrap">
                   Akcje
                 </th>
               )}
@@ -381,7 +389,8 @@ const EventTypeList = () => {
               <tr key={et.id} className="hover:bg-surface-container-low transition-colors group">
                 <td className="py-4 px-6">
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center shrink-0">
+                    <div
+                      className="h-10 w-10 rounded-full bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center shrink-0">
                       <span className="material-symbols-outlined text-[20px]">calendar_today</span>
                     </div>
                     <span className="font-body-md text-body-md text-on-surface font-semibold">
@@ -391,7 +400,7 @@ const EventTypeList = () => {
                 </td>
                 <td className="py-4 px-6 max-w-[220px]">
                     <span
-                      className="font-body-sm text-body-sm text-on-surface-variant truncate block"
+                      className="font-body-sm text-body-sm text-on-surface-variant block whitespace-normal break-words md:truncate"
                       title={et.description}
                     >
                       {et.description || '—'}
@@ -451,7 +460,8 @@ const EventTypeList = () => {
             <div key={et.id} className="p-4">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center shrink-0">
+                  <div
+                    className="h-10 w-10 rounded-full bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center shrink-0">
                     <span className="material-symbols-outlined text-[20px]">calendar_today</span>
                   </div>
                   <div>
@@ -474,9 +484,11 @@ const EventTypeList = () => {
               </div>
               <div className="space-y-2 ml-[52px]">
                 {et.description && (
-                  <div className="flex items-start gap-2 font-body-sm text-body-sm text-on-surface-variant">
-                    <span className="material-symbols-outlined text-[16px] mt-0.5">notes</span>
-                    <span>{et.description}</span>
+                  <div className="flex items-start gap-2 font-body-sm text-body-sm text-on-surface-variant min-w-0">
+                    <span className="material-symbols-outlined text-[16px] mt-0.5 shrink-0">notes</span>
+                    <span className="whitespace-normal break-words">
+                      {et.description}
+                    </span>
                   </div>
                 )}
                 <div className="flex items-center gap-2 font-body-sm text-body-sm text-on-surface-variant">
@@ -501,7 +513,7 @@ const EventTypeList = () => {
                   {t('eventTypes.noResults')}
                 </h4>
                 <p className="mt-1 font-body-sm text-body-sm text-on-surface-variant">
-                  {t('eventTypes.noResultsHint', { query: searchQuery })}
+                  {t('eventTypes.noResultsHint', {query: searchQuery})}
                 </p>
                 <button
                   type="button"
@@ -554,7 +566,7 @@ const EventTypeList = () => {
             <div className="fixed inset-0 z-[200]" onClick={closeDropdown}>
               <div
                 className="fixed w-48 rounded-xl border border-surface-variant bg-surface-container-lowest shadow-lg"
-                style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
+                style={{top: dropdownPosition.top, left: dropdownPosition.left}}
                 onClick={(e) => e.stopPropagation()}
               >
                 <button
@@ -584,16 +596,17 @@ const EventTypeList = () => {
             className="fixed inset-0 z-[9999] md:hidden"
             onClick={() => setMobileActionsType(null)}
           >
-            <div className="absolute inset-0 bg-black/50" />
+            <div className="absolute inset-0 bg-black/50"/>
             <div
               className="absolute bottom-0 left-0 right-0 bg-surface-container-lowest rounded-t-2xl border-t border-surface-variant shadow-lg animate-slide-up"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-center pt-3 pb-2">
-                <div className="w-10 h-1 bg-outline-variant rounded-full" />
+                <div className="w-10 h-1 bg-outline-variant rounded-full"/>
               </div>
               <div className="px-6 pb-4 flex items-center gap-3 border-b border-surface-variant">
-                <div className="h-10 w-10 rounded-full bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center shrink-0">
+                <div
+                  className="h-10 w-10 rounded-full bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined text-[20px]">calendar_today</span>
                 </div>
                 <div>
@@ -638,7 +651,8 @@ const EventTypeList = () => {
       {showForm && (
         <ModalPortal>
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4">
-            <div className="w-full max-w-lg rounded-2xl border border-surface-variant bg-surface-container-lowest p-6 shadow-lg max-h-[90vh] overflow-y-auto">
+            <div
+              className="w-full max-w-lg rounded-2xl border border-surface-variant bg-surface-container-lowest p-6 shadow-lg max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-h3 text-h3 text-on-surface">
                   {editingType ? t('eventTypes.edit') : t('eventTypes.new')}
@@ -658,7 +672,7 @@ const EventTypeList = () => {
                     className="w-full rounded-xl border border-outline-variant bg-surface px-4 py-2.5 text-on-surface placeholder:text-outline focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                     placeholder={t('common.name')}
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
                     required
                     maxLength={100}
                   />
@@ -672,7 +686,7 @@ const EventTypeList = () => {
                     className="w-full rounded-xl border border-outline-variant bg-surface px-4 py-2.5 text-on-surface placeholder:text-outline focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all min-h-[80px]"
                     placeholder={t('common.description')}
                     value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    onChange={(e) => setFormData({...formData, description: e.target.value})}
                     required
                   />
                 </div>
@@ -686,7 +700,7 @@ const EventTypeList = () => {
                       type="number"
                       className="w-full rounded-xl border border-outline-variant bg-surface px-4 py-2.5 text-on-surface placeholder:text-outline focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                       value={formData.duration}
-                      onChange={(e) => setFormData({ ...formData, duration: Number(e.target.value) })}
+                      onChange={(e) => setFormData({...formData, duration: Number(e.target.value)})}
                       min={1}
                       required
                     />
@@ -699,7 +713,7 @@ const EventTypeList = () => {
                       type="number"
                       className="w-full rounded-xl border border-outline-variant bg-surface px-4 py-2.5 text-on-surface placeholder:text-outline focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                       value={formData.price}
-                      onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
+                      onChange={(e) => setFormData({...formData, price: Number(e.target.value)})}
                       min={0}
                       step="0.01"
                       required
@@ -717,7 +731,7 @@ const EventTypeList = () => {
                       className="w-full rounded-xl border border-outline-variant bg-surface px-4 py-2.5 text-on-surface placeholder:text-outline focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                       value={formData.maxParticipants}
                       onChange={(e) =>
-                        setFormData({ ...formData, maxParticipants: Number(e.target.value) })
+                        setFormData({...formData, maxParticipants: Number(e.target.value)})
                       }
                       min={1}
                       required
@@ -732,7 +746,7 @@ const EventTypeList = () => {
                       className="w-full rounded-xl border border-outline-variant bg-surface px-4 py-2.5 text-on-surface placeholder:text-outline focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                       value={formData.minStaff}
                       onChange={(e) =>
-                        setFormData({ ...formData, minStaff: Number(e.target.value) })
+                        setFormData({...formData, minStaff: Number(e.target.value)})
                       }
                       min={1}
                       required
