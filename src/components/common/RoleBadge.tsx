@@ -11,20 +11,46 @@ const roleKeys: Record<number, string> = {
   [StaffRole.Trainer]: 'role.trainer',
 };
 
-const roleClasses: Record<number, string> = {
-  [StaffRole.Manager]: 'bg-blue-50 text-blue-600 dark:bg-blue-900/25 dark:text-blue-300',
-  [StaffRole.ReceptionEmployee]: 'bg-amber-50 text-amber-600 dark:bg-amber-900/25 dark:text-amber-300',
-  [StaffRole.Trainer]: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/25 dark:text-emerald-300',
+const roleVariants: Record<number, string> = {
+  [StaffRole.Manager]:
+    'bg-primary-container text-on-primary border border-primary-container shadow-sm',
+  [StaffRole.ReceptionEmployee]:
+    'bg-on-tertiary-container text-white border border-on-tertiary-container shadow-sm',
+  [StaffRole.Trainer]:
+    'bg-secondary text-on-secondary border border-secondary shadow-sm',
+};
+
+const parseRoleValue = (role: string | number): number | undefined => {
+  if (typeof role === 'number') return role;
+
+  const roleMap: Record<string, number> = {
+    Manager: StaffRole.Manager,
+    ReceptionEmployee: StaffRole.ReceptionEmployee,
+    Trainer: StaffRole.Trainer,
+  };
+
+  return roleMap[role];
 };
 
 const RoleBadge = ({ role }: RoleBadgeProps) => {
   const { t } = useI18n();
-  const roleNum = typeof role === 'string' ? (StaffRole as Record<string, number>)[role] : role;
-  const variant = roleClasses[roleNum as number] ?? 'bg-zinc-100 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300';
-  const label = roleKeys[roleNum as number] ? t(roleKeys[roleNum as number]) : t('role.unknown');
+
+  const roleNum = parseRoleValue(role);
+
+  const label =
+    roleNum !== undefined && roleKeys[roleNum]
+      ? t(roleKeys[roleNum])
+      : t('role.unknown');
+
+  const variant =
+    roleNum !== undefined
+      ? roleVariants[roleNum] ?? 'bg-surface-container text-on-surface border border-outline-variant'
+      : 'bg-surface-container text-on-surface border border-outline-variant';
 
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${variant}`}>
+    <span
+      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold tracking-wide whitespace-nowrap ${variant}`}
+    >
       {label}
     </span>
   );

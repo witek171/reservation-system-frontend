@@ -2,22 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --surface: #ffffff;
-  --surface-muted: #f4f4f5;
-  --content: #18181b;
-  --content-muted: #71717a;
-  --border: #e4e4e7;
-}
-
-.dark {
-  --surface: #18181b;
-  --surface-muted: #27272a;
-  --content: #fafafa;
-  --content-muted: #a1a1aa;
-  --border: #3f3f46;
-}
-
 html,
 body,
 #root {
@@ -43,7 +27,14 @@ html {
 body {
   font-family: 'Inter', system-ui, sans-serif;
   line-height: 1.6;
-  @apply bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100;
+  background-color: #f7f9fb;
+  color: #191c1e;
+  min-height: 100vh;
+}
+
+body.dark {
+  background-color: #0f1419; /* przykładowy dark background */
+  color: #e0e3e5; /* przykładowy dark text */
 }
 
 ul, ol {
@@ -63,4 +54,53 @@ button {
 img, svg {
   display: block;
   max-width: 100%;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.material-symbols-outlined.fill {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Light scrollbars for the entire application */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.4) #ffffff;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
 }

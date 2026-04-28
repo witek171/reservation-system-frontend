@@ -1,11 +1,16 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '../../../context/I18nContext.tsx';
+import Select from '../../common/Select.tsx';
 
 interface EventSchedule {
   id: string;
   startTime: string;
   placeName?: string;
-  eventType?: { id?: string; name?: string };
+  eventType?: {
+    id?: string;
+    name?: string;
+    price?: number;
+  };
 }
 
 interface EventTypeItem {
@@ -20,17 +25,21 @@ interface EventCalendarSelectorProps {
   onSelectEvent: (eventId: string) => void;
 }
 
+const navBtnClass =
+  'h-9 w-9 inline-flex items-center justify-center rounded-full text-outline hover:text-on-surface hover:bg-surface-variant transition-colors';
+
 const EventCalendarSelector: React.FC<EventCalendarSelectorProps> = ({
-  eventSchedules,
-  eventTypes,
-  selectedEventId,
-  onSelectEvent,
-}) => {
+                                                                       eventSchedules,
+                                                                       eventTypes,
+                                                                       selectedEventId,
+                                                                       onSelectEvent,
+                                                                     }) => {
   const { t, locale } = useI18n();
   const localeTag = locale === 'pl' ? 'pl-PL' : 'en-US';
+
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
-  const [eventTypeFilter, setEventTypeFilter] = useState('');
+  const [eventTypeFilter, setEventTypeFilter] = useState<string>('');
 
   const toLocalDateKey = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -42,42 +51,67 @@ const EventCalendarSelector: React.FC<EventCalendarSelectorProps> = ({
     });
   }, [localeTag]);
 
+  const eventTypeOptions = useMemo(
+    () => [
+      { value: '', label: t('calendar.allEventTypes') },
+      ...eventTypes.map((type) => ({ value: type.id, label: type.name })),
+    ],
+    [eventTypes, t]
+  );
+
+  const filteredSchedules = useMemo(() => {
+    if (!eventTypeFilter) return eventSchedules;
+    return eventSchedules.filter((s) => s.eventType?.id === eventTypeFilter);
+  }, [eventSchedules, eventTypeFilter]);
+
   const eventsByDate = useMemo(() => {
     const grouped: Record<string, EventSchedule[]> = {};
-
-    const filteredSchedules = eventTypeFilter
-      ? eventSchedules.filter((s) => s.eventType?.id === eventTypeFilter)
-      : eventSchedules;
 
     filteredSchedules.forEach((schedule) => {
       if (!schedule.startTime) return;
       const date = new Date(schedule.startTime);
       const dateKey = toLocalDateKey(date);
-      if (!grouped[dateKey]) {
-        grouped[dateKey] = [];
-      }
+
+      if (!grouped[dateKey]) grouped[dateKey] = [];
       grouped[dateKey].push(schedule);
     });
 
     Object.keys(grouped).forEach((key) => {
-      grouped[key].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+      grouped[key].sort(
+        (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+      );
     });
 
     return grouped;
-  }, [eventSchedules, eventTypeFilter]);
-
-  const eventsForSelectedDay = useMemo(() => {
-    if (!selectedDay) return [];
-    const dateKey = toLocalDateKey(selectedDay);
-    return eventsByDate[dateKey] || [];
-  }, [selectedDay, eventsByDate]);
+  }, [filteredSchedules]);
 
   const selectedEvent = useMemo(() => {
     return eventSchedules.find((s) => s.id === selectedEventId);
-  }, [selectedEventId, eventSchedules]);
+  }, [eventSchedules, selectedEventId]);
+
+  useEffect(() => {
+    if (!selectedDay) return;
+    const key = toLocalDateKey(selectedDay);
+    if (!eventsByDate[key]?.length) {
+      setSelectedDay(null);
+    }
+  }, [selectedDay, eventsByDate]);
+
+  useEffect(() => {
+    if (!eventTypeFilter || !selectedEventId) return;
+    const current = eventSchedules.find((s) => s.id === selectedEventId);
+    if (current?.eventType?.id !== eventTypeFilter) {
+      onSelectEvent('');
+    }
+  }, [eventTypeFilter, selectedEventId, eventSchedules, onSelectEvent]);
+
+  const eventsForSelectedDay = useMemo(() => {
+    if (!selectedDay) return [];
+    return eventsByDate[toLocalDateKey(selectedDay)] || [];
+  }, [selectedDay, eventsByDate]);
 
   const formatTime = (dateString?: string) => {
-    if (!dateString) return '-';
+    if (!dateString) return '—';
     return new Date(dateString).toLocaleTimeString(localeTag, {
       hour: '2-digit',
       minute: '2-digit',
@@ -85,24 +119,34 @@ const EventCalendarSelector: React.FC<EventCalendarSelectorProps> = ({
   };
 
   const formatDateTime = (dateString?: string) => {
-    if (!dateString) return { date: '-', time: '' };
+    if (!dateString) return { date: '—', time: '' };
     const date = new Date(dateString);
     return {
-      date: date.toLocaleDateString(localeTag, { year: 'numeric', month: 'short', day: 'numeric' }),
-      time: date.toLocaleTimeString(localeTag, { hour: '2-digit', minute: '2-digit' }),
+      date: date.toLocaleDateString(localeTag, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      }),
+      time: date.toLocaleTimeString(localeTag, {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
     };
   };
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
+
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
     const prevMonth = new Date(year, month, 0);
+
     const days: { date: Date; isCurrentMonth: boolean }[] = [];
 
     const startingDayMondayFirst = (firstDay.getDay() + 6) % 7;
+
     for (let i = 0; i < startingDayMondayFirst; i++) {
       days.push({
         date: new Date(year, month - 1, prevMonth.getDate() - startingDayMondayFirst + 1 + i),
@@ -129,8 +173,7 @@ const EventCalendarSelector: React.FC<EventCalendarSelectorProps> = ({
   };
 
   const getEventsForDate = (date: Date) => {
-    const dateKey = toLocalDateKey(date);
-    return eventsByDate[dateKey] || [];
+    return eventsByDate[toLocalDateKey(date)] || [];
   };
 
   const isToday = (date: Date) => {
@@ -139,27 +182,28 @@ const EventCalendarSelector: React.FC<EventCalendarSelectorProps> = ({
   };
 
   const isSelectedDay = (date: Date) => {
-    return selectedDay && date.toDateString() === selectedDay.toDateString();
+    return !!selectedDay && date.toDateString() === selectedDay.toDateString();
   };
 
   const hasSelectedEvent = (date: Date) => {
     if (!selectedEventId) return false;
-    const dayEvents = getEventsForDate(date);
-    return dayEvents.some((e) => e.id === selectedEventId);
+    return getEventsForDate(date).some((e) => e.id === selectedEventId);
   };
 
   const handleDayClick = (date: Date) => {
     const dayEvents = getEventsForDate(date);
-    if (dayEvents.length > 0) {
-      setSelectedDay(date);
-      if (selectedEventId) {
-        const dateKey = toLocalDateKey(date);
-        const selectedEventDate = selectedEvent?.startTime
-          ? toLocalDateKey(new Date(selectedEvent.startTime))
-          : null;
-        if (selectedEventDate !== dateKey) {
-          onSelectEvent('');
-        }
+    if (dayEvents.length === 0) return;
+
+    setSelectedDay(date);
+
+    if (selectedEventId) {
+      const dateKey = toLocalDateKey(date);
+      const selectedEventDate = selectedEvent?.startTime
+        ? toLocalDateKey(new Date(selectedEvent.startTime))
+        : null;
+
+      if (selectedEventDate !== dateKey) {
+        onSelectEvent('');
       }
     }
   };
@@ -168,58 +212,57 @@ const EventCalendarSelector: React.FC<EventCalendarSelectorProps> = ({
     onSelectEvent(eventId === selectedEventId ? '' : eventId);
   };
 
-  const handleClosePanel = () => {
-    setSelectedDay(null);
-  };
-
   const calendarDays = getDaysInMonth(calendarDate);
 
   return (
-    <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden bg-white dark:bg-zinc-900">
-      <div className="flex items-center justify-between px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700 gap-2">
-        <select
-          className="max-w-[220px] py-2 px-3 border border-zinc-200 dark:border-zinc-600 rounded text-base text-zinc-800 dark:text-zinc-200 bg-white dark:bg-zinc-900 cursor-pointer flex-shrink-0 focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-400/20"
-          value={eventTypeFilter}
-          onChange={(e) => setEventTypeFilter(e.target.value)}
-          style={{ flex: 1, marginRight: 'var(--spacing-md)' }}
-        >
-          <option value="">{t('calendar.allEventTypes')}</option>
-          {eventTypes.map((type) => (
-            <option key={type.id} value={type.id}>
-              {type.name}
-            </option>
-          ))}
-        </select>
-        <span className="flex-1 text-center text-sm font-semibold text-zinc-800 dark:text-zinc-200 whitespace-nowrap">
-          {calendarDate.toLocaleDateString(localeTag, { month: 'long', year: 'numeric' })}
-        </span>
-        <div className="flex items-center gap-0.5 flex-shrink-0">
+    <div className="rounded-xl border border-surface-variant bg-surface overflow-hidden">
+      <div className="p-4 border-b border-surface-variant bg-surface-bright flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="w-full lg:w-72">
+          <Select
+            options={eventTypeOptions}
+            value={eventTypeFilter}
+            onChange={(value) => setEventTypeFilter(String(value))}
+          />
+        </div>
+
+        <div className="flex items-center justify-between lg:justify-end gap-3">
           <button
             type="button"
-            className="w-7 h-7 flex items-center justify-center border border-zinc-200 dark:border-zinc-600 rounded text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 cursor-pointer transition-colors flex-shrink-0"
-            onClick={() => setCalendarDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
+            className={navBtnClass}
+            onClick={() =>
+              setCalendarDate(
+                (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
+              )
+            }
+            aria-label="Poprzedni miesiąc"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
+            <span className="material-symbols-outlined">chevron_left</span>
           </button>
+
+          <span className="min-w-[180px] text-center font-body-md text-body-md font-semibold text-on-surface capitalize">
+            {calendarDate.toLocaleDateString(localeTag, { month: 'long', year: 'numeric' })}
+          </span>
+
           <button
             type="button"
-            className="w-7 h-7 flex items-center justify-center border border-zinc-200 dark:border-zinc-600 rounded text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 cursor-pointer transition-colors flex-shrink-0"
-            onClick={() => setCalendarDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
+            className={navBtnClass}
+            onClick={() =>
+              setCalendarDate(
+                (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
+              )
+            }
+            aria-label="Następny miesiąc"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
+            <span className="material-symbols-outlined">chevron_right</span>
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-px bg-zinc-200 dark:bg-zinc-700">
+      <div className="grid grid-cols-7 gap-px bg-surface-variant">
         {weekDays.map((day) => (
           <div
             key={day}
-            className="bg-zinc-50 dark:bg-zinc-800 py-1 text-center text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase"
+            className="bg-surface-container-low py-2 text-center text-[11px] font-label-bold uppercase tracking-wider text-on-surface-variant"
           >
             {day}
           </div>
@@ -232,41 +275,54 @@ const EventCalendarSelector: React.FC<EventCalendarSelectorProps> = ({
           return (
             <div
               key={index}
-              className={`
-                bg-white dark:bg-zinc-900 min-h-[60px] p-0.5 flex flex-col cursor-pointer transition-colors
-                ${!day.isCurrentMonth ? 'bg-zinc-50 dark:bg-zinc-800/50' : ''}
-                ${isToday(day.date) ? 'bg-primary-100 dark:bg-primary-500/10 ring-primary-500 dark:ring-primary-500/50' : ''}
-                ${isSelectedDay(day.date) ? 'bg-primary-50 dark:bg-primary-500/10 outline-2 outline outline-primary-400 dark:outline-primary-500 outline-offset-[-2px]' : ''}
-                ${hasSelectedEvent(day.date) ? 'bg-primary-50 dark:bg-primary-500/10 outline-2 outline outline-primary-400 dark:outline-primary-500 outline-offset-[-2px]' : ''}
-                ${hasEvents && !isToday(day.date) && !isSelectedDay(day.date) && !hasSelectedEvent(day.date) ? 'hover:bg-primary-50/50 dark:hover:bg-primary-500/10' : ''}
-              `}
+              className={[
+                'min-h-[84px] p-1.5 flex flex-col bg-surface transition-colors',
+                day.isCurrentMonth ? '' : 'bg-surface-container-low/60',
+                hasEvents ? 'cursor-pointer' : 'cursor-default',
+                isToday(day.date) ? 'ring-1 ring-inset ring-primary/30' : '',
+                isSelectedDay(day.date) || hasSelectedEvent(day.date)
+                  ? 'bg-primary/5 ring-2 ring-inset ring-primary'
+                  : '',
+                hasEvents &&
+                !isSelectedDay(day.date) &&
+                !hasSelectedEvent(day.date) &&
+                !isToday(day.date)
+                  ? 'hover:bg-surface-container-low'
+                  : '',
+              ].join(' ')}
               onClick={() => handleDayClick(day.date)}
             >
               <span
-                className={`
-                  text-[11px] font-semibold w-6 h-6 flex items-center justify-center rounded-full mb-0.5 shrink-0
-                  ${isToday(day.date) ? 'bg-indigo-200 text-white shadow-sm dark:bg-primary-400 dark:text-zinc-900' : ''}
-                  ${!day.isCurrentMonth ? 'text-zinc-400 dark:text-zinc-500' : 'text-zinc-800 dark:text-zinc-200'}
-                `}
+                className={[
+                  'mb-1 inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold',
+                  isToday(day.date)
+                    ? 'bg-primary text-on-primary'
+                    : day.isCurrentMonth
+                      ? 'text-on-surface'
+                      : 'text-outline',
+                ].join(' ')}
               >
                 {day.date.getDate()}
               </span>
-              <div className="flex-1 flex flex-col gap-px overflow-hidden">
+
+              <div className="flex flex-col gap-1 overflow-hidden">
                 {dayEvents.slice(0, 2).map((event) => (
                   <div
                     key={event.id}
-                    className={`text-[11px] py-0.5 px-1 rounded-sm whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer transition-colors ${
+                    className={[
+                      'rounded px-1.5 py-1 text-[10px] leading-tight truncate',
                       selectedEventId === event.id
-                        ? 'bg-primary-500 text-white dark:bg-primary-400 dark:text-zinc-900'
-                        : 'bg-primary-100 dark:bg-primary-500/20 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-500/30'
-                    }`}
+                        ? 'bg-primary text-on-primary'
+                        : 'bg-tertiary-fixed text-on-tertiary-fixed',
+                    ].join(' ')}
                     title={`${event.eventType?.name || 'Event'} - ${formatTime(event.startTime)}`}
                   >
                     {formatTime(event.startTime)} {event.eventType?.name || ''}
                   </div>
                 ))}
+
                 {dayEvents.length > 2 && (
-                  <span className="text-[9px] text-zinc-400 dark:text-zinc-500 py-0.5 px-1">
+                  <span className="px-1 text-[10px] text-on-surface-variant">
                     {t('calendar.more', { count: dayEvents.length - 2 })}
                   </span>
                 )}
@@ -277,9 +333,9 @@ const EventCalendarSelector: React.FC<EventCalendarSelectorProps> = ({
       </div>
 
       {selectedDay && eventsForSelectedDay.length > 0 && (
-        <div className="border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
-          <div className="flex justify-between items-center px-3 py-2 text-sm font-semibold text-zinc-800 dark:text-zinc-200 border-b border-zinc-200 dark:border-zinc-700">
-            <span>
+        <div className="border-t border-surface-variant bg-surface-bright">
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-surface-variant">
+            <span className="font-body-md text-body-md font-semibold text-on-surface">
               {t('calendar.selectEventOn')}{' '}
               {selectedDay.toLocaleDateString(localeTag, {
                 weekday: 'long',
@@ -287,75 +343,98 @@ const EventCalendarSelector: React.FC<EventCalendarSelectorProps> = ({
                 day: 'numeric',
               })}
             </span>
+
             <button
               type="button"
-              className="w-7 h-7 flex items-center justify-center border border-zinc-200 dark:border-zinc-600 rounded text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-700 cursor-pointer"
-              onClick={handleClosePanel}
+              className={navBtnClass}
+              onClick={() => setSelectedDay(null)}
+              aria-label="Zamknij"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
+              <span className="material-symbols-outlined">close</span>
             </button>
           </div>
-          <div className="max-h-[200px] overflow-y-auto">
+
+          <div className="max-h-[260px] overflow-y-auto divide-y divide-surface-variant">
             {eventsForSelectedDay.map((event) => (
-              <div
+              <button
                 key={event.id}
-                className={`flex items-start gap-2 py-2 px-3 cursor-pointer transition-colors border-b border-zinc-100 dark:border-zinc-700 last:border-b-0 ${
-                selectedEventId === event.id ? 'bg-primary-50 dark:bg-primary-500/20' : 'hover:bg-white dark:hover:bg-zinc-900'
-              }`}
-              onClick={() => handleEventSelect(event.id)}
-            >
-              <div
-                className={`w-[18px] h-[18px] rounded-full border-2 border-zinc-200 dark:border-zinc-600 flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors ${
-                  selectedEventId === event.id ? 'bg-primary-500 border-primary-500 dark:bg-primary-400 dark:border-primary-400' : ''
-                }`}
+                type="button"
+                onClick={() => handleEventSelect(event.id)}
+                className={[
+                  'w-full px-4 py-3 text-left transition-colors flex items-start gap-3',
+                  selectedEventId === event.id
+                    ? 'bg-primary/5'
+                    : 'hover:bg-surface-container-low',
+                ].join(' ')}
               >
+                <div
+                  className={[
+                    'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border',
+                    selectedEventId === event.id
+                      ? 'border-primary bg-primary text-on-primary'
+                      : 'border-outline-variant bg-surface',
+                  ].join(' ')}
+                >
                   {selectedEventId === event.id && (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-2.5 h-2.5 text-white">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
+                    <span className="material-symbols-outlined text-[14px]">check</span>
                   )}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+
+                <div className="min-w-0 flex-1">
+                  <div className="font-body-md text-body-md font-semibold text-on-surface">
                     {event.eventType?.name || 'Event'}
                   </div>
-                  <div className="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400">
-                    <span>{formatTime(event.startTime)}</span>
-                    <span>•</span>
-                    <span>{event.placeName}</span>
+
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 font-body-sm text-body-sm text-on-surface-variant">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[16px]">schedule</span>
+                      {formatTime(event.startTime)}
+                    </span>
+
+                    {event.placeName && (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-[16px]">location_on</span>
+                        {event.placeName}
+                      </span>
+                    )}
                   </div>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </div>
       )}
 
       {selectedEvent && (
-        <div className="flex items-center gap-4 p-4 bg-primary-50/80 dark:bg-primary-500/10 border-t border-primary-200/50 dark:border-primary-500/20">
-          <div className="w-8 h-8 bg-primary-500 dark:bg-primary-400 text-white dark:text-zinc-900 rounded-lg flex items-center justify-center flex-shrink-0">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
+        <div className="border-t border-primary/20 bg-primary/5 px-4 py-4 flex items-start gap-3">
+          <div className="h-10 w-10 rounded-full bg-primary text-on-primary flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-[18px]">check</span>
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs text-primary-600 dark:text-primary-400 uppercase font-medium">
+
+          <div className="min-w-0 flex-1">
+            <div className="font-label-bold text-label-bold uppercase tracking-wider text-primary">
               {t('calendar.selectedEvent')}
             </div>
-            <div className="text-base font-semibold text-zinc-900 dark:text-zinc-100 whitespace-nowrap overflow-hidden text-ellipsis">
+
+            <div className="mt-1 font-body-md text-body-md font-semibold text-on-surface truncate">
               {selectedEvent.eventType?.name || 'Event'}
             </div>
-            <div className="text-sm text-zinc-500 dark:text-zinc-400">
-              {selectedEvent.placeName} • {formatDateTime(selectedEvent.startTime).date} at{' '}
-              {formatTime(selectedEvent.startTime)}
+
+            <div className="mt-1 font-body-sm text-body-sm text-on-surface-variant">
+              {selectedEvent.placeName || '—'} • {formatDateTime(selectedEvent.startTime).date},{' '}
+              {formatDateTime(selectedEvent.startTime).time}
             </div>
+
+            {selectedEvent.eventType?.price != null && (
+              <div className="mt-1 font-body-sm text-body-sm text-on-surface-variant">
+                {Number(selectedEvent.eventType.price).toFixed(2)} PLN / os.
+              </div>
+            )}
           </div>
+
           <button
             type="button"
-            className="py-1.5 px-3 border border-primary-300 dark:border-primary-600 rounded-xl text-primary-600 dark:text-primary-300 text-sm cursor-pointer transition-colors hover:bg-primary-100 dark:hover:bg-primary-500/20 flex-shrink-0"
+            className="px-4 py-2.5 rounded-lg border border-outline-variant text-on-surface font-label-bold text-label-bold hover:bg-surface-container-low transition-colors"
             onClick={() => onSelectEvent('')}
           >
             {t('calendar.clear')}

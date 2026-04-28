@@ -1,7 +1,6 @@
 import React from 'react';
 import { useAuth } from '../../../context/AuthContext.tsx';
 import { useI18n } from '../../../context/I18nContext.tsx';
-import {IconAdd, IconClose} from '../../common/Icons.tsx';
 
 interface ReservationHeaderProps {
   totalCount: number;
@@ -10,36 +9,47 @@ interface ReservationHeaderProps {
 }
 
 const ReservationHeader: React.FC<ReservationHeaderProps> = ({
-  totalCount,
-  showForm,
-  onToggleForm,
-}) => {
+                                                               totalCount,
+                                                               showForm,
+                                                               onToggleForm,
+                                                             }) => {
   const { t } = useI18n();
   const { isTrainer } = useAuth();
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex items-center gap-3">
-        <h3 className="flex items-center gap-2 text-xl font-semibold text-zinc-900 dark:text-zinc-100 m-0">
-          {t('reservations.title')}
-        </h3>
-        {totalCount > 0 && (
-          <span className="text-sm text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-3 py-1 rounded-xl">
-            {totalCount === 1 ? t('reservations.reservationCount', { count: totalCount }) : t('reservations.reservationsCount', { count: totalCount })}
-          </span>
-        )}
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="font-h2 text-h2 text-on-surface">{t('reservations.title')}</h1>
+
+          {totalCount > 0 && (
+            <span className="inline-flex items-center rounded-full bg-surface-container-low border border-outline-variant px-3 py-1 font-body-sm text-body-sm text-on-surface-variant">
+              {totalCount === 1
+                ? t('reservations.reservationCount', { count: totalCount })
+                : t('reservations.reservationsCount', { count: totalCount })}
+            </span>
+          )}
+        </div>
+
+        <p className="font-body-md text-body-md text-on-surface-variant mt-1">
+          {t('reservations.subtitle')}
+        </p>
       </div>
+
       {!isTrainer() && (
         <button
           type="button"
-          className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors ${
-            showForm
-              ? 'border border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
-              : 'border border-primary-300 bg-primary-500/15 text-primary-700 hover:bg-primary-500/25 dark:border-primary-600 dark:bg-primary-500/20 dark:text-primary-200 dark:hover:bg-primary-500/30'
-          }`}
           onClick={onToggleForm}
+          className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 font-label-bold text-label-bold transition-colors ${
+            showForm
+              ? 'border border-outline-variant text-on-surface hover:bg-surface-container-low'
+              : 'bg-primary text-on-primary hover:bg-primary-hover'
+          }`}
         >
-          {showForm ? <><IconClose className="w-4 h-4" /> {t('common.cancel')}</> : <><IconAdd className="w-4 h-4" /> {t('reservations.add')}</>}
+          <span className="material-symbols-outlined text-[18px]">
+            {showForm ? 'close' : 'add'}
+          </span>
+          {showForm ? t('common.cancel') : t('reservations.add')}
         </button>
       )}
     </div>

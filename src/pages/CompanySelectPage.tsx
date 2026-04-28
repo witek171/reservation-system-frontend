@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useI18n } from '../context/I18nContext.tsx';
 import CompanySelector from '../components/CompanySelector.tsx';
+import type { Company } from '../types/api.ts';
 
 const CompanySelectPage = () => {
   const { companies, selectCompany, hasCompanySelected, logout, loading, staffMember } = useAuth();
@@ -13,7 +14,7 @@ const CompanySelectPage = () => {
     if (hasCompanySelected) navigate('/dashboard');
   }, [hasCompanySelected, navigate]);
 
-  const handleSelectCompany = (company: { id: string; name: string }) => {
+  const handleSelectCompany = (company: Company) => {
     selectCompany(company);
     navigate('/dashboard');
   };
@@ -25,42 +26,56 @@ const CompanySelectPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center p-4">
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
-          <div className="flex items-center gap-3 text-zinc-600 dark:text-zinc-400">
-            <span className="w-5 h-5 border-2 border-zinc-400 dark:border-zinc-500 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-background flex items-center justify-center px-4 py-8 sm:p-gutter">
+        <main className="w-full max-w-[420px] bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-sm p-4 sm:p-lg">
+          <div className="flex items-center justify-center gap-3 text-on-surface-variant font-body-md text-body-md">
+            <span className="h-5 w-5 animate-spin rounded-full border-2 border-outline-variant border-t-primary" />
             {t('loadingCompanies')}
           </div>
-        </div>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col items-center p-4">
-      <div className="w-full max-w-xl flex flex-col gap-4">
-        <div className="flex justify-end">
+    <div className="min-h-screen bg-background flex items-center justify-center px-4 py-8 sm:p-gutter">
+      <main className="w-full max-w-[520px] bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-sm p-4 sm:p-lg flex flex-col">
+        <div className="flex flex-col items-center justify-center mb-lg text-center">
+          <h1 className="text-[26px] leading-none font-bold tracking-[-0.02em] text-on-surface select-none">Bookium</h1>
+          <p className="mt-xs font-body-sm text-body-sm text-on-surface-variant">
+            Wybierz miejsce pracy, aby przejść dalej.
+          </p>
+        </div>
+
+        <div className="bg-surface-container-low rounded-xl p-3 sm:p-sm mb-lg border border-surface-variant">
+          <p className="font-body-sm text-body-sm text-on-surface-variant">
+            Przykładowe dane demo są dostępne w firmie{' '}
+            <strong
+              translate="no"
+              className="notranslate font-label-bold text-label-bold text-on-surface"
+            >
+              SportFit Centrum
+            </strong>
+            .
+          </p>
+        </div>
+
+        <CompanySelector
+          companies={companies}
+          staffMember={staffMember}
+          onSelect={handleSelectCompany}
+        />
+
+        <div className="mt-md pt-md border-t border-surface-variant">
           <button
             type="button"
             onClick={handleLogout}
-            className="flex items-center gap-2 px-3 py-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg text-sm font-medium"
+            className="w-full py-sm px-md bg-surface text-secondary font-label-bold text-label-bold rounded-lg hover:bg-surface-container-low active:scale-[0.98] transition-all"
           >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
-            </svg>
             {t('nav.logout')}
           </button>
         </div>
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
-          <CompanySelector
-            companies={companies}
-            staffMember={staffMember}
-            onSelect={handleSelectCompany}
-          />
-        </div>
-      </div>
+      </main>
     </div>
   );
 };

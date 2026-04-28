@@ -1,35 +1,33 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-
-type Theme = 'light' | 'dark';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 
 interface ThemeContextValue {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
+  theme: 'light' | 'dark';
   toggleTheme: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-const STORAGE_KEY = 'planner-theme';
-
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window === 'undefined') return 'light';
-    return (localStorage.getItem(STORAGE_KEY) as Theme) || 'light';
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('theme');
+    return (saved as 'light' | 'dark') || 'light';
   });
 
   useEffect(() => {
-    const root = document.documentElement;
-    if (theme === 'dark') root.classList.add('dark');
-    else root.classList.remove('dark');
-    localStorage.setItem(STORAGE_KEY, theme);
+    localStorage.setItem('theme', theme);
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
   }, [theme]);
 
-  const setTheme = (value: Theme) => setThemeState(value);
-  const toggleTheme = () => setThemeState((t) => (t === 'light' ? 'dark' : 'light'));
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );

@@ -12,29 +12,31 @@ const ErrorModal = ({ error, onClose, title }: ErrorModalProps) => {
   if (!error) return null;
 
   const errorMessage =
-    typeof error === 'string' ? error : (error as { message?: string })?.message ?? JSON.stringify(error);
+    typeof error === 'string'
+      ? error
+      : (error as { message?: string })?.message ?? JSON.stringify(error);
   const modalTitle = title ?? t('error.title');
 
   return (
     <div
-      className="fixed inset-0 z-[500] flex items-center justify-center bg-black/50 dark:bg-black/60"
+      className="fixed inset-0 z-[500] flex items-center justify-center bg-black/50"
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="mx-4 w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-5 shadow-soft dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-soft-dark"
+        className="mx-4 w-full max-w-md rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-lg shadow-sm"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
       >
-        <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{modalTitle}</h3>
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">{errorMessage}</p>
+        <h3 className="font-h3 text-h3 text-error">{modalTitle}</h3>
+        <p className="mt-xs font-body-md text-body-md text-on-surface-variant">{errorMessage}</p>
         <button
           type="button"
           onClick={onClose}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+          className="mt-md flex h-[48px] w-full items-center justify-center gap-2 rounded-lg border border-surface-variant bg-surface font-label-bold text-label-bold text-on-surface hover:bg-surface-container-low active:scale-[0.98] transition-all"
         >
-          <IconClose className="w-4 h-4" />
+          <IconClose className="h-4 w-4" />
           {t('common.close')}
         </button>
       </div>
