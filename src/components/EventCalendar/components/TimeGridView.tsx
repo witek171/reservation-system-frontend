@@ -36,14 +36,35 @@ function getWeekDates(date: Date): Date[] {
   });
 }
 
+// ── Konwersja czasu UTC do warszawskiego (ścieżka pochodna formatToPolishTime) ──
+function parseBackendDate(value?: string | Date): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+
+  let str = value.trim();
+  if (!/[Zz]|[+-]\d{2}:?\d{2}$/.test(str)) {
+    str += 'Z';
+  }
+
+  const date = new Date(str);
+  return isNaN(date.getTime()) ? null : date;
+}
+
 function toWarsawHM(dateStr: string): { hours: number; minutes: number } {
-  const parts = new Date(dateStr).toLocaleTimeString('en-GB', {
-    timeZone: 'Europe/Warsaw',
+  const date = parseBackendDate(dateStr);
+  if (!date) return { hours: 0, minutes: 0 };
+  
+  const parts = new Intl.DateTimeFormat('pl-PL', {
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: 'Europe/Warsaw',
     hour12: false,
-  }).split(':');
-  return { hours: parseInt(parts[0], 10), minutes: parseInt(parts[1], 10) };
+  }).formatToParts(date);
+  
+  const hour = parts.find(p => p.type === 'hour')?.value || '0';
+  const minute = parts.find(p => p.type === 'minute')?.value || '0';
+  
+  return { hours: parseInt(hour, 10), minutes: parseInt(minute, 10) };
 }
 
 function layoutEvents(events: CalendarEvent[]): { event: CalendarEvent; column: number; totalColumns: number }[] {
