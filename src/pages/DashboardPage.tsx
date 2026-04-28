@@ -66,8 +66,8 @@ const DashboardPage = () => {
   };
 
   const getInitials = () => {
-    const first = staffMember?.firstName?.[0] || '';
-    const last = staffMember?.lastName?.[0] || '';
+    const first = (staffMember?.firstName as string)?.[0] || '';
+    const last = (staffMember?.lastName as string)?.[0] || '';
     return `${first}${last}`.toUpperCase() || 'U';
   };
 
@@ -174,7 +174,7 @@ const DashboardPage = () => {
           <div className="flex items-center gap-2 ml-3 shrink-0">
             <div className="text-right">
               <div className="text-xs font-medium text-slate-700 dark:text-slate-200 leading-tight">
-                {staffMember?.firstName} {staffMember?.lastName}
+                {staffMember?.firstName as string} {staffMember?.lastName as string}
               </div>
               <div className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
                 {roleLabel}

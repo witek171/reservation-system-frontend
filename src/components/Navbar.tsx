@@ -21,8 +21,8 @@ const Navbar = () => {
   };
 
   const getInitials = () => {
-    const first = staffMember?.firstName?.[0] || '';
-    const last = staffMember?.lastName?.[0] || '';
+    const first = (staffMember?.firstName as string)?.[0] || '';
+    const last = (staffMember?.lastName as string)?.[0] || '';
     return `${first}${last}`.toUpperCase() || 'U';
   };
 
@@ -59,7 +59,7 @@ const Navbar = () => {
       <div className="ml-6 flex shrink-0 items-center gap-3 border-l border-slate-200 dark:border-slate-800 pl-6">
         <div className="text-right">
           <div className="text-sm font-semibold text-slate-900 dark:text-white">
-            {staffMember?.firstName || ''} {staffMember?.lastName || ''}
+            {staffMember?.firstName as string || ''} {staffMember?.lastName as string || ''}
           </div>
           <div className="text-xs text-slate-500 dark:text-slate-400">
             {roleLabel}
