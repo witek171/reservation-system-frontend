@@ -1,5 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
+import desktopPreview from '../assets/desktop-preview.png';
+import mobilePreview from '../assets/mobile-preview.png';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -9,7 +11,7 @@ export default function LandingPage() {
     // Prepopulate login form with demo credentials
     navigate('/login', { state: { email: 'm@m.pl', password: 'demo' } });
   };
-
+// previewed.app, shots.so
   return (
     <div className="bg-background min-h-screen flex flex-col">
       {/* Header */}
@@ -25,7 +27,7 @@ export default function LandingPage() {
         {/* Hero Section */}
         <section className="max-w-7xl mx-auto px-gutter py-xl md:py-[120px]">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-xl items-center">
-            <div className="lg:col-span-6 flex flex-col gap-md">
+            <div className="lg:col-span-5 flex flex-col gap-md">
               <h1 className="font-h1 text-h1 text-on-surface leading-tight">
                 {t('landing.hero.title')}
               </h1>
@@ -48,13 +50,46 @@ export default function LandingPage() {
                 </button>
               </div>
             </div>
-            <div className="lg:col-span-6 relative">
-              <div className="relative w-full aspect-square md:aspect-[4/3] bg-surface-container-low rounded-xl overflow-hidden border border-outline-variant shadow-sm">
-                <div className="w-full h-full bg-gradient-to-br from-primary-fixed-dim to-secondary-fixed-dim flex items-center justify-center">
-                  <span className="material-symbols-outlined text-[120px] text-primary opacity-20">
-                    event_available
-                  </span>
+
+            <div className="lg:col-span-7 relative">
+              {/* Mobile / tablet - obok siebie */}
+              <div className="flex items-end gap-3 lg:hidden">
+                <div className="flex-1 rounded-lg bg-white p-1 shadow-sm ring-1 ring-black/5">
+                  <div className="aspect-[1904/937] w-full overflow-hidden rounded-md bg-surface-container-lowest">
+                    <img
+                      src={desktopPreview}
+                      alt="Podgląd aplikacji na komputerze"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
                 </div>
+
+                <img
+                  src={mobilePreview}
+                  alt="Podgląd aplikacji na telefonie"
+                  className="w-24 sm:w-32 md:w-36 shrink-0 object-contain"
+                />
+              </div>
+
+              {/* Desktop */}
+              <div className="hidden lg:block relative pr-12 xl:pr-16">
+                <div className="absolute inset-0 bg-primary-fixed-dim/20 blur-3xl rounded-[28px] scale-95"></div>
+
+                <div className="relative rounded-lg bg-white p-1.5 shadow-xl ring-1 ring-black/5">
+                  <div className="aspect-[1904/937] w-full overflow-hidden rounded-md bg-surface-container-lowest">
+                    <img
+                      src={desktopPreview}
+                      alt="Podgląd aplikacji na komputerze"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                </div>
+
+                <img
+                  src={mobilePreview}
+                  alt="Podgląd aplikacji na telefonie"
+                  className="absolute bottom-4 right-0 w-[24%] min-w-[150px] max-w-[190px] object-contain"
+                />
               </div>
             </div>
           </div>
