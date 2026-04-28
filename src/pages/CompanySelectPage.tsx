@@ -41,7 +41,7 @@ const CompanySelectPage = () => {
     <div className="min-h-screen bg-background flex items-center justify-center px-4 py-8 sm:p-gutter">
       <main className="w-full max-w-[520px] bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-sm p-4 sm:p-lg flex flex-col">
         <div className="flex flex-col items-center justify-center mb-lg text-center">
-          <h1 className="font-h1 text-h1 text-primary">Bookium</h1>
+          <h1 className="text-[26px] leading-none font-bold tracking-[-0.02em] text-on-surface select-none">Bookium</h1>
           <p className="mt-xs font-body-sm text-body-sm text-on-surface-variant">
             Wybierz miejsce pracy, aby przejść dalej.
           </p>

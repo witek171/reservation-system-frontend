@@ -47,7 +47,7 @@ const LoginPage = () => {
       <main className="w-full max-w-[420px] bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-sm p-4 sm:p-lg flex flex-col">
 
         <div className="flex flex-col items-center justify-center mb-lg">
-          <h1 className="font-h1 text-h1 text-primary">Bookium</h1>
+          <h1 className="text-[26px] leading-none font-bold tracking-[-0.02em] text-on-surface select-none">Bookium</h1>
         </div>
 
         {error && (
