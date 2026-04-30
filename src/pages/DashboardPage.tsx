@@ -99,7 +99,12 @@ const DashboardPage = () => {
     { id: 'availability', path: '/dashboard/availability', labelKey: 'dashboard.myAvailability', icon: 'schedule', component: AvailabilityCalendar },
   ];
 
-  const receptionEmployeeTabs: TabItem[] = [];
+  const receptionEmployeeTabs: TabItem[] = [
+    { id: 'reservations', path: '/dashboard/reservations', labelKey: 'dashboard.reservations', icon: 'event_note', component: ReservationList },
+    { id: 'schedules', path: '/dashboard/schedules', labelKey: 'dashboard.schedule', icon: 'calendar_today', component: EventCalendar },
+    { id: 'participants', path: '/dashboard/participants', labelKey: 'dashboard.participants', icon: 'groups', component: ParticipantList },
+  ];
+
   const availableTabs = isManager() ? managerTabs : isTrainer() ? trainerTabs : receptionEmployeeTabs;
 
   const getActiveTab = () => {
@@ -118,14 +123,6 @@ const DashboardPage = () => {
     setSidebarOpen(false);
   };
 
-  const ReceptionNoAccessView = () => (
-    <div className="flex flex-col items-center justify-center min-h-[360px] p-lg bg-surface-container-lowest rounded-xl border border-surface-variant text-center">
-      <h2 className="font-h2 text-h2 text-on-surface mb-sm">{t('dashboard.welcome')}</h2>
-      <p className="font-body-md text-body-md text-on-surface-variant mb-xs">{t('reception.noAccess')}</p>
-      <p className="font-body-sm text-body-sm text-outline">{t('reception.noAccessHint')}</p>
-    </div>
-  );
-
   const NotFoundPlaceholder = () => (
     <div className="flex flex-col items-center justify-center min-h-[360px] p-lg bg-surface-container-lowest rounded-xl border border-surface-variant text-center">
       <h2 className="font-h2 text-h2 text-on-surface mb-sm">{t('dashboard.pageNotFound')}</h2>
@@ -134,7 +131,7 @@ const DashboardPage = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="dark min-h-screen bg-background flex">
       {/* ====== Mobile Top Bar ====== */}
       <header className="fixed top-0 left-0 right-0 z-30 md:hidden bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
         {/* Wiersz 1: Hamburger + Firma + Avatar */}
@@ -295,7 +292,15 @@ const DashboardPage = () => {
               <Route path="*" element={<NotFoundPlaceholder />} />
             </Routes>
           )}
-          {isReceptionEmployee() && <ReceptionNoAccessView />}
+          {isReceptionEmployee() && (
+            <Routes>
+              <Route index element={<ReservationList />} />
+              <Route path="reservations" element={<ReservationList />} />
+              <Route path="schedules" element={<EventCalendar />} />
+              <Route path="participants" element={<ParticipantList />} />
+              <Route path="*" element={<NotFoundPlaceholder />} />
+            </Routes>
+          )}
           {!isManager() && !isTrainer() && !isReceptionEmployee() && (
             <div className="flex flex-col items-center justify-center min-h-[360px] p-lg bg-surface-container-lowest rounded-xl border border-surface-variant text-center">
               <h2 className="font-h2 text-h2 text-on-surface mb-sm">{t('dashboard.welcome')}</h2>
